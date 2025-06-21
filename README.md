@@ -378,28 +378,6 @@ function takeDamage(amount) {
 """
 ```
 
-## 🚀 Deployment on Replit
-
-The engine is fully optimized for Replit deployment:
-
-### Development Features
-- **Hot Reload**: Perfect for rapid development on Replit
-- **Error Recovery**: No need to restart when debugging
-- **Performance**: Optimized for Replit's environment
-- **Asset Management**: Automatic asset detection and loading
-
-### Deployment Steps
-1. **Click Run**: Test your game immediately
-2. **Use Deploy**: Publish to the web with one click
-3. **Share**: Your game runs at `your-repl-name.replit.app`
-4. **Custom Domain**: Add your own domain later
-
-```bash
-# Quick start on Replit
-python test_fixed_engine.py    # Physics demo
-python test_assets_demo.py     # Complete game demo
-```
-
 ## 🎯 Perfect For
 
 - **Professional Game Development**: Production-ready features
