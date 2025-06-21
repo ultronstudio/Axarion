@@ -9,6 +9,336 @@ from typing import List, NamedTuple, Optional
 
 class TokenType(Enum):
     # Literals
+    NUMBER = auto()
+    STRING = auto()
+    IDENTIFIER = auto()
+    
+    # Keywords
+    VAR = auto()
+    FUNCTION = auto()
+    IF = auto()
+    ELSE = auto()
+    WHILE = auto()
+    FOR = auto()
+    DO = auto()
+    RETURN = auto()
+    BREAK = auto()
+    CONTINUE = auto()
+    TRUE = auto()
+    FALSE = auto()
+    NULL = auto()
+    THIS = auto()
+    SUPER = auto()
+    NEW = auto()
+    CLASS = auto()
+    EXTENDS = auto()
+    TRY = auto()
+    CATCH = auto()
+    FINALLY = auto()
+    THROW = auto()
+    IMPORT = auto()
+    EXPORT = auto()
+    FROM = auto()
+    AS = auto()
+    SWITCH = auto()
+    CASE = auto()
+    DEFAULT = auto()
+    TYPEOF = auto()
+    INSTANCEOF = auto()
+    IN = auto()
+    
+    # Operators
+    PLUS = auto()
+    MINUS = auto()
+    MULTIPLY = auto()
+    DIVIDE = auto()
+    MODULO = auto()
+    ASSIGN = auto()
+    PLUS_ASSIGN = auto()
+    MINUS_ASSIGN = auto()
+    MULTIPLY_ASSIGN = auto()
+    DIVIDE_ASSIGN = auto()
+    EQUAL = auto()
+    NOT_EQUAL = auto()
+    LESS = auto()
+    LESS_EQUAL = auto()
+    GREATER = auto()
+    GREATER_EQUAL = auto()
+    AND = auto()
+    OR = auto()
+    NOT = auto()
+    INCREMENT = auto()
+    DECREMENT = auto()
+    
+    # Punctuation
+    LEFT_PAREN = auto()
+    RIGHT_PAREN = auto()
+    LEFT_BRACE = auto()
+    RIGHT_BRACE = auto()
+    LEFT_BRACKET = auto()
+    RIGHT_BRACKET = auto()
+    COMMA = auto()
+    SEMICOLON = auto()
+    DOT = auto()
+    COLON = auto()
+    QUESTION = auto()
+    
+    # Special
+    EOF = auto()
+    NEWLINE = auto()
+
+class Token(NamedTuple):
+    type: TokenType
+    value: str
+    line: int
+    column: int
+
+class AXScriptLexer:
+    """Lexer for AXScript language"""
+    
+    def __init__(self):
+        self.keywords = {
+            'var': TokenType.VAR,
+            'function': TokenType.FUNCTION,
+            'if': TokenType.IF,
+            'else': TokenType.ELSE,
+            'while': TokenType.WHILE,
+            'for': TokenType.FOR,
+            'do': TokenType.DO,
+            'return': TokenType.RETURN,
+            'break': TokenType.BREAK,
+            'continue': TokenType.CONTINUE,
+            'true': TokenType.TRUE,
+            'false': TokenType.FALSE,
+            'null': TokenType.NULL,
+            'this': TokenType.THIS,
+            'super': TokenType.SUPER,
+            'new': TokenType.NEW,
+            'class': TokenType.CLASS,
+            'extends': TokenType.EXTENDS,
+            'try': TokenType.TRY,
+            'catch': TokenType.CATCH,
+            'finally': TokenType.FINALLY,
+            'throw': TokenType.THROW,
+            'import': TokenType.IMPORT,
+            'export': TokenType.EXPORT,
+            'from': TokenType.FROM,
+            'as': TokenType.AS,
+            'switch': TokenType.SWITCH,
+            'case': TokenType.CASE,
+            'default': TokenType.DEFAULT,
+            'typeof': TokenType.TYPEOF,
+            'instanceof': TokenType.INSTANCEOF,
+            'in': TokenType.IN,
+        }
+    
+    def tokenize(self, source: str) -> List[Token]:
+        """Tokenize source code"""
+        tokens = []
+        lines = source.split('\n')
+        
+        for line_num, line in enumerate(lines, 1):
+            column = 0
+            i = 0
+            
+            while i < len(line):
+                # Skip whitespace
+                if line[i].isspace():
+                    i += 1
+                    column += 1
+                    continue
+                
+                # Skip comments
+                if i < len(line) - 1 and line[i:i+2] == '//':
+                    break
+                
+                # Multi-character operators
+                if i < len(line) - 1:
+                    two_char = line[i:i+2]
+                    if two_char == '++':
+                        tokens.append(Token(TokenType.INCREMENT, two_char, line_num, column))
+                        i += 2
+                        column += 2
+                        continue
+                    elif two_char == '--':
+                        tokens.append(Token(TokenType.DECREMENT, two_char, line_num, column))
+                        i += 2
+                        column += 2
+                        continue
+                    elif two_char == '==':
+                        tokens.append(Token(TokenType.EQUAL, two_char, line_num, column))
+                        i += 2
+                        column += 2
+                        continue
+                    elif two_char == '!=':
+                        tokens.append(Token(TokenType.NOT_EQUAL, two_char, line_num, column))
+                        i += 2
+                        column += 2
+                        continue
+                    elif two_char == '<=':
+                        tokens.append(Token(TokenType.LESS_EQUAL, two_char, line_num, column))
+                        i += 2
+                        column += 2
+                        continue
+                    elif two_char == '>=':
+                        tokens.append(Token(TokenType.GREATER_EQUAL, two_char, line_num, column))
+                        i += 2
+                        column += 2
+                        continue
+                    elif two_char == '&&':
+                        tokens.append(Token(TokenType.AND, two_char, line_num, column))
+                        i += 2
+                        column += 2
+                        continue
+                    elif two_char == '||':
+                        tokens.append(Token(TokenType.OR, two_char, line_num, column))
+                        i += 2
+                        column += 2
+                        continue
+                    elif two_char == '+=':
+                        tokens.append(Token(TokenType.PLUS_ASSIGN, two_char, line_num, column))
+                        i += 2
+                        column += 2
+                        continue
+                    elif two_char == '-=':
+                        tokens.append(Token(TokenType.MINUS_ASSIGN, two_char, line_num, column))
+                        i += 2
+                        column += 2
+                        continue
+                    elif two_char == '*=':
+                        tokens.append(Token(TokenType.MULTIPLY_ASSIGN, two_char, line_num, column))
+                        i += 2
+                        column += 2
+                        continue
+                    elif two_char == '/=':
+                        tokens.append(Token(TokenType.DIVIDE_ASSIGN, two_char, line_num, column))
+                        i += 2
+                        column += 2
+                        continue
+                
+                # Single character tokens
+                char = line[i]
+                
+                if char == '+':
+                    tokens.append(Token(TokenType.PLUS, char, line_num, column))
+                elif char == '-':
+                    tokens.append(Token(TokenType.MINUS, char, line_num, column))
+                elif char == '*':
+                    tokens.append(Token(TokenType.MULTIPLY, char, line_num, column))
+                elif char == '/':
+                    tokens.append(Token(TokenType.DIVIDE, char, line_num, column))
+                elif char == '%':
+                    tokens.append(Token(TokenType.MODULO, char, line_num, column))
+                elif char == '=':
+                    tokens.append(Token(TokenType.ASSIGN, char, line_num, column))
+                elif char == '<':
+                    tokens.append(Token(TokenType.LESS, char, line_num, column))
+                elif char == '>':
+                    tokens.append(Token(TokenType.GREATER, char, line_num, column))
+                elif char == '!':
+                    tokens.append(Token(TokenType.NOT, char, line_num, column))
+                elif char == '(':
+                    tokens.append(Token(TokenType.LEFT_PAREN, char, line_num, column))
+                elif char == ')':
+                    tokens.append(Token(TokenType.RIGHT_PAREN, char, line_num, column))
+                elif char == '{':
+                    tokens.append(Token(TokenType.LEFT_BRACE, char, line_num, column))
+                elif char == '}':
+                    tokens.append(Token(TokenType.RIGHT_BRACE, char, line_num, column))
+                elif char == '[':
+                    tokens.append(Token(TokenType.LEFT_BRACKET, char, line_num, column))
+                elif char == ']':
+                    tokens.append(Token(TokenType.RIGHT_BRACKET, char, line_num, column))
+                elif char == ',':
+                    tokens.append(Token(TokenType.COMMA, char, line_num, column))
+                elif char == ';':
+                    tokens.append(Token(TokenType.SEMICOLON, char, line_num, column))
+                elif char == '.':
+                    tokens.append(Token(TokenType.DOT, char, line_num, column))
+                elif char == ':':
+                    tokens.append(Token(TokenType.COLON, char, line_num, column))
+                elif char == '?':
+                    tokens.append(Token(TokenType.QUESTION, char, line_num, column))
+                
+                # String literals
+                elif char in ['"', "'"]:
+                    quote_char = char
+                    start_col = column
+                    i += 1
+                    column += 1
+                    string_val = ""
+                    
+                    while i < len(line) and line[i] != quote_char:
+                        if line[i] == '\\' and i + 1 < len(line):
+                            # Handle escape sequences
+                            i += 1
+                            column += 1
+                            escape_char = line[i]
+                            if escape_char == 'n':
+                                string_val += '\n'
+                            elif escape_char == 't':
+                                string_val += '\t'
+                            elif escape_char == 'r':
+                                string_val += '\r'
+                            elif escape_char == '\\':
+                                string_val += '\\'
+                            elif escape_char == quote_char:
+                                string_val += quote_char
+                            else:
+                                string_val += escape_char
+                        else:
+                            string_val += line[i]
+                        i += 1
+                        column += 1
+                    
+                    if i < len(line) and line[i] == quote_char:
+                        tokens.append(Token(TokenType.STRING, quote_char + string_val + quote_char, line_num, start_col))
+                        i += 1
+                        column += 1
+                    else:
+                        raise Exception(f"Unterminated string at line {line_num}, column {start_col}")
+                
+                # Numbers
+                elif char.isdigit() or char == '.':
+                    start_col = column
+                    num_str = ""
+                    has_dot = False
+                    
+                    while i < len(line) and (line[i].isdigit() or (line[i] == '.' and not has_dot)):
+                        if line[i] == '.':
+                            has_dot = True
+                        num_str += line[i]
+                        i += 1
+                        column += 1
+                    
+                    tokens.append(Token(TokenType.NUMBER, num_str, line_num, start_col))
+                    continue
+                
+                # Identifiers and keywords
+                elif char.isalpha() or char == '_':
+                    start_col = column
+                    identifier = ""
+                    
+                    while i < len(line) and (line[i].isalnum() or line[i] == '_'):
+                        identifier += line[i]
+                        i += 1
+                        column += 1
+                    
+                    token_type = self.keywords.get(identifier, TokenType.IDENTIFIER)
+                    tokens.append(Token(token_type, identifier, line_num, start_col))
+                    continue
+                
+                else:
+                    raise Exception(f"Unexpected character '{char}' at line {line_num}, column {column}")
+                
+                i += 1
+                column += 1
+        
+        tokens.append(Token(TokenType.EOF, "", len(lines), 0))
+        return tokens
+
+class TokenType(Enum):
+    # Literals
     IDENTIFIER = auto()
     NUMBER = auto()
     STRING = auto()
@@ -25,6 +355,29 @@ class TokenType(Enum):
     FALSE = auto()
     NULL = auto()
     CLASS = auto()
+    IMPORT = auto()
+    EXPORT = auto()
+    FROM = auto()
+    AS = auto()
+    NEW = auto()
+    THIS = auto()
+    SUPER = auto()
+    EXTENDS = auto()
+    STATIC = auto()
+    TRY = auto()
+    CATCH = auto()
+    FINALLY = auto()
+    THROW = auto()
+    IN = auto()
+    OF = auto()
+    DO = auto()
+    BREAK = auto()
+    CONTINUE = auto()
+    SWITCH = auto()
+    CASE = auto()
+    DEFAULT = auto()
+    TYPEOF = auto()
+    INSTANCEOF = auto()
 
     # Operators
     PLUS = auto()
@@ -32,6 +385,12 @@ class TokenType(Enum):
     MULTIPLY = auto()
     DIVIDE = auto()
     MODULO = auto()
+    PLUS_ASSIGN = auto()
+    MINUS_ASSIGN = auto()
+    MULTIPLY_ASSIGN = auto()
+    DIVIDE_ASSIGN = auto()
+    INCREMENT = auto()
+    DECREMENT = auto()
 
     # Comparison
     EQUAL = auto()
@@ -40,6 +399,8 @@ class TokenType(Enum):
     LESS_EQUAL = auto()
     GREATER = auto()
     GREATER_EQUAL = auto()
+    STRICT_EQUAL = auto()
+    STRICT_NOT_EQUAL = auto()
 
     # Logical
     AND = auto()
@@ -60,6 +421,8 @@ class TokenType(Enum):
     DOT = auto()
     SEMICOLON = auto()
     COLON = auto()
+    QUESTION = auto()
+    ARROW = auto()
 
     # Special
     EOF = auto()
@@ -96,6 +459,29 @@ class AXScriptLexer:
             'false': TokenType.FALSE,
             'null': TokenType.NULL,
             'class': TokenType.CLASS,
+            'import': TokenType.IMPORT,
+            'export': TokenType.EXPORT,
+            'from': TokenType.FROM,
+            'as': TokenType.AS,
+            'new': TokenType.NEW,
+            'this': TokenType.THIS,
+            'super': TokenType.SUPER,
+            'extends': TokenType.EXTENDS,
+            'static': TokenType.STATIC,
+            'try': TokenType.TRY,
+            'catch': TokenType.CATCH,
+            'finally': TokenType.FINALLY,
+            'throw': TokenType.THROW,
+            'in': TokenType.IN,
+            'of': TokenType.OF,
+            'do': TokenType.DO,
+            'break': TokenType.BREAK,
+            'continue': TokenType.CONTINUE,
+            'switch': TokenType.SWITCH,
+            'case': TokenType.CASE,
+            'default': TokenType.DEFAULT,
+            'typeof': TokenType.TYPEOF,
+            'instanceof': TokenType.INSTANCEOF,
         }
 
         # Single character tokens
@@ -110,6 +496,7 @@ class AXScriptLexer:
             '.': TokenType.DOT,
             ';': TokenType.SEMICOLON,
             ':': TokenType.COLON,
+            '?': TokenType.QUESTION,
             '+': TokenType.PLUS,
             '-': TokenType.MINUS,
             '*': TokenType.MULTIPLY,
@@ -125,6 +512,15 @@ class AXScriptLexer:
             '>=': TokenType.GREATER_EQUAL,
             '&&': TokenType.AND,
             '||': TokenType.OR,
+            '===': TokenType.STRICT_EQUAL,
+            '!==': TokenType.STRICT_NOT_EQUAL,
+            '++': TokenType.INCREMENT,
+            '--': TokenType.DECREMENT,
+            '+=': TokenType.PLUS_ASSIGN,
+            '-=': TokenType.MINUS_ASSIGN,
+            '*=': TokenType.MULTIPLY_ASSIGN,
+            '/=': TokenType.DIVIDE_ASSIGN,
+            '=>': TokenType.ARROW,
         }
 
     def tokenize(self, source: str) -> List[Token]:
@@ -177,6 +573,16 @@ class AXScriptLexer:
                     column += new_i - i
                     i = new_i
                     continue
+
+                # Three character tokens
+                if i + 2 < len(line):
+                    three_char = line[i:i+3]
+                    if three_char in ['===', '!==']:
+                        token_type = TokenType.STRICT_EQUAL if three_char == '===' else TokenType.STRICT_NOT_EQUAL
+                        tokens.append(Token(token_type, three_char, line_num, column))
+                        column += 3
+                        i += 3
+                        continue
 
                 # Two character tokens
                 if i + 1 < len(line):

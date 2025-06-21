@@ -1,8 +1,6 @@
-
 #!/usr/bin/env python3
-
 """
-Axarion Engine Physics Test
+Axarion Engif (pos.x < 0) setProperty("position", {x: 0, y: pos.y});ine Physics Test
 Demonstrates physics system, collision detection, and player movement
 """
 
@@ -18,23 +16,24 @@ from engine.core import AxarionEngine
 from engine.game_object import GameObject
 from engine.scene import Scene
 
+
 def create_physics_test():
     """Create test scene with physics objects"""
-    
+
     # Create engine
     engine = AxarionEngine(1000, 700)
     if not engine.initialize():
         print("Failed to initialize engine")
         return None
-    
+
     # Create scene
     scene = Scene("Physics Test")
     engine.current_scene = scene
-    
+
     # Set scene properties
     scene.set_gravity(0, 400)  # Gravity
     scene.set_bounds(0, 0, 1000, 700)
-    
+
     # Create player
     player = GameObject("Player", "rectangle")
     player.position = (100, 200)
@@ -45,17 +44,16 @@ def create_physics_test():
     player.bounce = 0.1
     player.friction = 0.8
     player.add_tag("player")
-    
-    # Player script with improved jumping
+
+    # Player script with improved jumping - compatible with new AXScript
     player.script_code = """
 var speed = 150;
 var jumpForce = 350;
-var onGround = false;
 
 function update() {
-    // Check if on ground
-    onGround = isOnGround();
-    
+    // Use built-in ground checking function
+    var onGround = isOnGround();
+
     // Horizontal movement
     if (keyPressed("ArrowLeft") || keyPressed("a")) {
         applyForce(-speed * 2, 0);
@@ -63,13 +61,12 @@ function update() {
     if (keyPressed("ArrowRight") || keyPressed("d")) {
         applyForce(speed * 2, 0);
     }
-    
+
     // Jumping - only when on ground
     if ((keyPressed("ArrowUp") || keyPressed("w") || keyPressed(" ")) && onGround) {
-        var vel = getProperty("velocity");
-        setProperty("velocity", {x: vel.x, y: -jumpForce});
+        jump(jumpForce);
     }
-    
+
     // Keep in bounds
     var pos = getProperty("position");
     if (pos.x < 0) setProperty("position", {x: 0, y: pos.y});
@@ -77,17 +74,35 @@ function update() {
 }
 """
     scene.add_object(player)
-    
+
     # Create ground platforms
     platforms = [
-        {"pos": (0, 650), "size": (300, 50)},
-        {"pos": (400, 650), "size": (600, 50)},
-        {"pos": (300, 500), "size": (150, 20)},
-        {"pos": (600, 400), "size": (120, 20)},
-        {"pos": (800, 300), "size": (100, 20)},
-        {"pos": (150, 350), "size": (100, 20)},
+        {
+            "pos": (0, 650),
+            "size": (300, 50)
+        },
+        {
+            "pos": (400, 650),
+            "size": (600, 50)
+        },
+        {
+            "pos": (300, 500),
+            "size": (150, 20)
+        },
+        {
+            "pos": (600, 400),
+            "size": (120, 20)
+        },
+        {
+            "pos": (800, 300),
+            "size": (100, 20)
+        },
+        {
+            "pos": (150, 350),
+            "size": (100, 20)
+        },
     ]
-    
+
     for i, platform_data in enumerate(platforms):
         platform = GameObject(f"Platform_{i}", "rectangle")
         platform.position = platform_data["pos"]
@@ -97,9 +112,10 @@ function update() {
         platform.is_static = True
         platform.add_tag("platform")
         scene.add_object(platform)
-    
+
     # Create bouncing balls
-    ball_colors = [(255, 100, 100), (100, 255, 100), (100, 100, 255), (255, 255, 100)]
+    ball_colors = [(255, 100, 100), (100, 255, 100), (100, 100, 255),
+                   (255, 255, 100)]
     for i in range(6):
         ball = GameObject(f"Ball_{i}", "circle")
         ball.position = (200 + i * 120, 100)
@@ -111,7 +127,7 @@ function update() {
         ball.velocity = (random.randint(-50, 50), random.randint(-100, 50))
         ball.add_tag("ball")
         scene.add_object(ball)
-    
+
     # Create movable boxes
     for i in range(4):
         box = GameObject(f"Box_{i}", "rectangle")
@@ -124,23 +140,24 @@ function update() {
         box.friction = 0.5
         box.add_tag("box")
         scene.add_object(box)
-    
+
     # Set up renderer
     engine.renderer.enable_debug(True)
     engine.renderer.show_object_bounds(False)
-    
+
     return engine
+
 
 def main():
     """Main test function"""
     print("🎮 Testing Fixed Axarion Engine")
     print("=" * 50)
-    
+
     # Create test scene
     engine = create_physics_test()
     if not engine:
         return
-    
+
     print("✅ Engine initialized successfully")
     print("✅ Scene created with physics objects")
     print("✅ Objects: Player, Platforms, Balls, Boxes")
@@ -150,19 +167,19 @@ def main():
     print("   ESC - Exit")
     print("   D - Toggle debug mode")
     print("\n🚀 Starting simulation...")
-    
+
     # Game loop
     clock = pygame.time.Clock()
     running = True
-    
+
     try:
         while running:
             delta_time = clock.tick(60) / 1000.0
-            
+
             # Handle events
             events = pygame.event.get()
             keys = pygame.key.get_pressed()
-            
+
             for event in events:
                 if event.type == pygame.QUIT:
                     running = False
@@ -172,64 +189,85 @@ def main():
                     elif event.key == pygame.K_d:
                         # Toggle debug mode
                         engine.renderer.debug_mode = not engine.renderer.debug_mode
-                        engine.renderer.show_object_bounds(engine.renderer.debug_mode)
-                        print(f"Debug mode: {'ON' if engine.renderer.debug_mode else 'OFF'}")
-            
-            # Manual player movement for testing
+                        engine.renderer.show_object_bounds(
+                            engine.renderer.debug_mode)
+                        print(
+                            f"Debug mode: {'ON' if engine.renderer.debug_mode else 'OFF'}"
+                        )
+
+            # Let AXScript handle player movement, but execute scripts safely
             player = engine.current_scene.get_object("Player")
-            if player:
-                move_speed = 150.0
-                jump_force = 350.0
-                
-                # Horizontal movement with moderate force
-                if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                    player.apply_force(-move_speed * 2, 0)
-                if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                    player.apply_force(move_speed * 2, 0)
-                
-                # Jumping - only when on ground and space just pressed
-                space_pressed = keys[pygame.K_SPACE] or keys[pygame.K_UP]
-                
-                if space_pressed and not getattr(player, '_jump_key_held', False):
-                    platforms = [obj for obj in engine.current_scene.objects.values() 
-                               if obj.has_tag("platform") or obj.is_static]
-                    
-                    if player.is_on_ground(platforms):
-                        # Set vertical velocity directly for jump
-                        vx, vy = player.velocity
-                        player.velocity = (vx, -jump_force)
-                        player._on_ground = False  # Remove ground flag
-                        print(f"Jumping! Velocity set to: {player.velocity}")
-                    
-                    player._jump_key_held = True
-                elif not space_pressed:
-                    # Reset when key is released
-                    player._jump_key_held = False
-            
-            # Update engine
-            engine.current_scene.update(delta_time)
-            
+            if player and hasattr(player,
+                                  'script_code') and player.script_code:
+                try:
+                    # Execute player script with error handling
+                    from scripting.axscript_interpreter import AXScriptInterpreter
+                    interpreter = AXScriptInterpreter()
+
+                    # Execute update function if it exists in script
+                    script_with_call = player.script_code + "\nif (typeof(update) === 'function') { update(); }"
+                    result = interpreter.execute(script_with_call, player)
+
+                    if not result["success"]:
+                        print(
+                            f"Script error in {player.name}: {result['error']}"
+                        )
+                        # Fallback to manual movement if script fails
+                        move_speed = 150.0
+                        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                            player.apply_force(-move_speed * 2, 0)
+                        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                            player.apply_force(move_speed * 2, 0)
+                        if keys[pygame.K_SPACE] or keys[pygame.K_UP]:
+                            if player.is_on_ground([
+                                    obj for obj in
+                                    engine.current_scene.objects.values()
+                                    if obj.is_static
+                            ]):
+                                vx, vy = player.velocity
+                                player.velocity = (vx, -350)
+
+                except Exception as e:
+                    print(f"Script execution error: {e}")
+                    # Continue with game even if script fails
+
+            # Update engine with error handling
+            try:
+                engine.current_scene.update(delta_time)
+            except Exception as e:
+                print(f"Scene update error: {e}")
+                # Continue running even with errors
+
             # Follow player with camera
             if player:
                 engine.renderer.follow_object(player, 0, -100)
-            
+
             # Render
             engine.renderer.clear()
             engine.current_scene.render(engine.renderer)
-            
+
             # Draw UI
-            engine.renderer.draw_text("Axarion Engine - Physics Test", 10, 10, (255, 255, 255))
-            engine.renderer.draw_text("WASD/Arrows: Move | Space: Jump | D: Debug | ESC: Exit", 10, 30, (200, 200, 200))
-            
+            engine.renderer.draw_text("Axarion Engine - Physics Test", 10, 10,
+                                      (255, 255, 255))
+            engine.renderer.draw_text(
+                "WASD/Arrows: Move | Space: Jump | D: Debug | ESC: Exit", 10,
+                30, (200, 200, 200))
+
             # Show physics info
             if player:
                 vel = player.velocity
-                on_ground = player.is_on_ground([obj for obj in engine.current_scene.objects.values() if obj.is_static])
-                engine.renderer.draw_text(f"Velocity: ({vel[0]:.1f}, {vel[1]:.1f})", 10, 50, (150, 200, 255))
-                engine.renderer.draw_text(f"On Ground: {on_ground}", 10, 70, (150, 200, 255))
-            
+                on_ground = player.is_on_ground([
+                    obj for obj in engine.current_scene.objects.values()
+                    if obj.is_static
+                ])
+                engine.renderer.draw_text(
+                    f"Velocity: ({vel[0]:.1f}, {vel[1]:.1f})", 10, 50,
+                    (150, 200, 255))
+                engine.renderer.draw_text(f"On Ground: {on_ground}", 10, 70,
+                                          (150, 200, 255))
+
             engine.renderer.present()
-            
+
     except KeyboardInterrupt:
         print("\n⏹️  Test interrupted by user")
     except Exception as e:
@@ -241,6 +279,7 @@ def main():
         engine.cleanup()
         pygame.quit()
         print("✅ Test completed")
+
 
 if __name__ == "__main__":
     main()
