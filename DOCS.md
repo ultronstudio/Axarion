@@ -1071,13 +1071,6 @@ hot_reload_system.disable()
 # Final export
 engine.export_game("my_game_release/")
 ```
-
-### Replit Deployment
-1. **Test Locally**: Use the Run button to test your game
-2. **Deploy**: Click Deploy/Publish button in Replit
-3. **Configure**: Set up custom domain if needed
-4. **Share**: Your game runs at `your-repl-name.replit.app`
-
 ---
 
 ## 📞 Support and Community
