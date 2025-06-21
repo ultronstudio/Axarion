@@ -1,6 +1,6 @@
 
 """
-Axarion Engine Physics System
+SnowFox Engine Physics System
 Basic 2D physics simulation
 """
 
