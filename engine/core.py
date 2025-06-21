@@ -1,3 +1,4 @@
+
 """
 Axarion Engine Core
 Main engine class that manages all subsystems
@@ -186,8 +187,8 @@ class AxarionEngine:
                     <body>
                         <h1>🎮 Axarion Game Engine</h1>
                         <div class="info">
-                            <p>✨ Vaše hra běží!</p>
-                            <p>🎯 Používejte šipky pro pohyb, mezerník pro akce</p>
+                            <p>✨ Your game is running!</p>
+                            <p>🎯 Use arrow keys to move, spacebar for actions</p>
                         </div>
                         <canvas id="gameCanvas" width="800" height="600"></canvas>
                         
@@ -220,7 +221,7 @@ class AxarionEngine:
                                 ctx.fillStyle = '#fff';
                                 ctx.font = '16px Arial';
                                 ctx.fillText('🎮 Axarion Engine Demo', 10, 30);
-                                ctx.fillText('Hra běží úspěšně!', 10, 55);
+                                ctx.fillText('Game running successfully!', 10, 55);
                                 
                                 requestAnimationFrame(animate);
                             }

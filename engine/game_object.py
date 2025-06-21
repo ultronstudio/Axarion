@@ -1,337 +1,378 @@
+
 """
 Axarion Engine Game Object
 Base class for all game entities
 """
 
 import math
-from typing import Dict, List, Tuple, Any, Optional
+import time
+from typing import Dict, Any, List, Tuple, Optional
 
 class GameObject:
-    """Base class for all game objects in the engine"""
+    """Base class for all game objects in Axarion Engine"""
     
-    def __init__(self, name: str = "GameObject", object_type: str = "rectangle"):
-        # Identity
-        self.id: str = ""
-        self.name: str = name
-        self.object_type: str = object_type
+    def __init__(self, name: str, object_type: str = "rectangle"):
+        self.name = name
+        self.object_type = object_type
+        self.position = (0.0, 0.0)
+        self.velocity = (0.0, 0.0)
+        self.acceleration = (0.0, 0.0)
+        self.rotation = 0.0
+        self.scale = (1.0, 1.0)
         
-        # Transform
-        self.position: Tuple[float, float] = (0.0, 0.0)
-        self.rotation: float = 0.0
-        self.scale: Tuple[float, float] = (1.0, 1.0)
-        self.origin: Tuple[float, float] = (0.5, 0.5)  # Pivot point (0-1)
+        # Visual properties
+        self.visible = True
+        self.active = True
+        self.destroyed = False
         
-        # Physics
-        self.velocity: Tuple[float, float] = (0.0, 0.0)
-        self.acceleration: Tuple[float, float] = (0.0, 0.0)
-        self.mass: float = 1.0
-        self.friction: float = 0.0
-        self.bounce: float = 0.0
-        self.gravity_scale: float = 1.0
-        self.is_static: bool = False
-        self.is_trigger: bool = False
+        # Physics properties
+        self.mass = 1.0
+        self.friction = 0.1
+        self.bounce = 0.8
+        self.gravity_scale = 1.0
+        self.is_static = False
+        self.collision_enabled = True
+        self.collision_layer = "default"
         
-        # State
-        self.active: bool = True
-        self.visible: bool = True
-        self.destroyed: bool = False
-        
-        # Gameplay features
-        self.health: float = 100.0
-        self.max_health: float = 100.0
-        self.damage: float = 10.0
-        self.defense: float = 0.0
-        self.speed: float = 100.0
-        self.level: int = 1
-        self.experience: float = 0.0
-        
-        # Inventory and items (for RPG games)
-        self.inventory: List[Dict[str, Any]] = []
-        self.equipment: Dict[str, Any] = {}
-        self.stats: Dict[str, float] = {}
-        
-        # AI and behavior
-        self.ai_state: str = "idle"
-        self.target: Optional['GameObject'] = None
-        self.patrol_points: List[Tuple[float, float]] = []
-        self.current_patrol_index: int = 0
-        
-        # Visual effects
-        self.alpha: float = 1.0
-        self.tint_color: Tuple[int, int, int] = (255, 255, 255)
-        self.blend_mode: str = "normal"
-        
-        # Collision and layers
-        self.collision_layer: str = "default"
-        self.collision_mask: List[str] = ["default"]
+        # Custom properties
+        self.properties: Dict[str, Any] = {}
         self.tags: List[str] = []
         
-        # Animation
-        self.sprite_sheet: Optional[str] = None
-        self.animation_frame: int = 0
-        self.animation_speed: float = 1.0
-        self.current_animation: str = "idle"
-        self.animations: Dict[str, Dict] = {}
-        
-        # Properties (type-specific attributes)
-        self.properties: Dict[str, Any] = {}
-        
-        # Script
-        self.script_code: str = ""
-        self.script_variables: Dict[str, Any] = {}
-        self.script_functions: Dict[str, Any] = {}
-        
-        # References
+        # Parent scene reference
         self.scene = None
-        self.children: List['GameObject'] = []
-        self.parent: Optional['GameObject'] = None
         
-        # Timers and coroutines
+        # Scripting
+        self.script_code = ""
+        self.script_context = {}
+        
+        # Timers
         self.timers: Dict[str, float] = {}
-        self.coroutines: List = []
         
-        # Set default properties based on type
-        self._set_default_properties()
+        # Stats (for RPG objects)
+        self.stats: Dict[str, float] = {
+            "health": 100.0,
+            "max_health": 100.0,
+            "mana": 50.0,
+            "max_mana": 50.0,
+            "attack": 10.0,
+            "defense": 5.0,
+            "speed": 100.0
+        }
+        
+        # Inventory (for RPG objects)
+        self.inventory: List[Dict[str, Any]] = []
+        self.equipment: Dict[str, Dict[str, Any]] = {}
+        
+        # AI properties
+        self.ai_state = "idle"
+        self.target = None
+        self.patrol_points: List[Tuple[float, float]] = []
+        self.current_patrol_index = 0
+        
+        # Asset properties
+        self.sprite_name = None
+        self.animation_name = None
+        self.current_frame = 0
+        self.animation_speed = 1.0
+        self.animation_time = 0.0
+        self.animation_playing = True
+        self.animation_loop = True
+        
+        # Initialize default properties based on type
+        self._init_default_properties()
     
-    def _set_default_properties(self):
-        """Set default properties based on object type"""
+    def _init_default_properties(self):
+        """Initialize default properties based on object type"""
         if self.object_type == "rectangle":
             self.properties.update({
-                "width": 50.0,
-                "height": 50.0,
+                "width": 50,
+                "height": 50,
                 "color": (255, 255, 255)
             })
         elif self.object_type == "circle":
             self.properties.update({
-                "radius": 25.0,
-                "color": (255, 255, 255)
-            })
-        elif self.object_type == "line":
-            self.properties.update({
-                "end_x": 100.0,
-                "end_y": 0.0,
-                "width": 2,
-                "color": (255, 255, 255)
-            })
-        elif self.object_type == "triangle":
-            self.properties.update({
-                "size": 50.0,
-                "color": (255, 255, 255)
-            })
-        elif self.object_type == "star":
-            self.properties.update({
-                "size": 30.0,
-                "color": (255, 255, 255)
-            })
-        elif self.object_type == "diamond":
-            self.properties.update({
-                "size": 40.0,
+                "radius": 25,
                 "color": (255, 255, 255)
             })
         elif self.object_type == "sprite":
             self.properties.update({
-                "width": 32.0,
-                "height": 32.0,
+                "width": 32,
+                "height": 32,
                 "color": (100, 150, 255),
                 "texture": None
             })
     
     def update(self, delta_time: float):
         """Update the game object"""
-        # Apply physics
-        if self.velocity != (0.0, 0.0) or self.acceleration != (0.0, 0.0):
-            # Update velocity
-            vel_x, vel_y = self.velocity
-            acc_x, acc_y = self.acceleration
-            
-            vel_x += acc_x * delta_time
-            vel_y += acc_y * delta_time
-            
-            # Apply friction
-            if self.friction > 0:
-                friction_force = self.friction * delta_time
-                if abs(vel_x) > friction_force:
-                    vel_x -= friction_force if vel_x > 0 else -friction_force
-                else:
-                    vel_x = 0
-                    
-                if abs(vel_y) > friction_force:
-                    vel_y -= friction_force if vel_y > 0 else -friction_force
-                else:
-                    vel_y = 0
-            
-            self.velocity = (vel_x, vel_y)
-            
-            # Update position
-            pos_x, pos_y = self.position
-            pos_x += vel_x * delta_time
-            pos_y += vel_y * delta_time
-            self.position = (pos_x, pos_y)
+        if not self.active or self.destroyed:
+            return
         
-        # Update children
-        for child in self.children:
-            if child.active:
-                child.update(delta_time)
+        # Update timers
+        for timer_name in list(self.timers.keys()):
+            self.timers[timer_name] -= delta_time
+            if self.timers[timer_name] <= 0:
+                del self.timers[timer_name]
+        
+        # Apply physics if not static
+        if not self.is_static:
+            self.update_physics(delta_time)
+        
+        # Update animation
+        if self.animation_name:
+            self.update_animation(delta_time)
+        
+        # Execute script if present
+        if self.script_code:
+            self.execute_script()
     
-    def set_position(self, x: float, y: float):
-        """Set object position"""
-        self.position = (x, y)
-    
-    def get_position(self) -> Tuple[float, float]:
-        """Get object position"""
-        return self.position
-    
-    def move(self, dx: float, dy: float):
-        """Move object by offset"""
-        x, y = self.position
-        self.position = (x + dx, y + dy)
-    
-    def set_velocity(self, vx: float, vy: float):
-        """Set object velocity"""
-        self.velocity = (vx, vy)
-    
-    def add_velocity(self, dvx: float, dvy: float):
-        """Add to object velocity"""
+    def update_physics(self, delta_time: float):
+        """Update physics simulation"""
+        # Don't update physics if static
+        if self.is_static:
+            return
+            
+        # Reset ground flag at start of frame
+        if hasattr(self, '_on_ground'):
+            self._on_ground = False
+        
+        # Apply gravity through acceleration (not directly to velocity)
+        if self.gravity_scale > 0 and self.scene:
+            physics = getattr(self.scene, 'physics', None)
+            if physics and hasattr(physics, 'gravity'):
+                gx, gy = physics.gravity
+                # Add gravity to acceleration
+                ax, ay = self.acceleration
+                self.acceleration = (ax + gx * self.gravity_scale, ay + gy * self.gravity_scale)
+        
+        # Update velocity from acceleration
         vx, vy = self.velocity
-        self.velocity = (vx + dvx, vy + dvy)
-    
-    def set_property(self, key: str, value: Any):
-        """Set a property value"""
-        self.properties[key] = value
-    
-    def get_property(self, key: str, default: Any = None) -> Any:
-        """Get a property value"""
-        return self.properties.get(key, default)
-    
-    def contains_point(self, x: float, y: float) -> bool:
-        """Check if point is inside object bounds"""
-        obj_x, obj_y = self.position
+        ax, ay = self.acceleration
+        self.velocity = (vx + ax * delta_time, vy + ay * delta_time)
         
-        if self.object_type == "rectangle":
-            width = self.properties.get("width", 50)
-            height = self.properties.get("height", 50)
-            return (obj_x <= x <= obj_x + width and 
-                   obj_y <= y <= obj_y + height)
-                   
-        elif self.object_type == "circle":
-            radius = self.properties.get("radius", 25)
-            dx = x - obj_x
-            dy = y - obj_y
-            return (dx * dx + dy * dy) <= (radius * radius)
+        # Apply friction
+        if self.friction > 0:
+            platforms = []
+            if self.scene:
+                platforms = [obj for obj in self.scene.objects.values() 
+                           if obj != self and (obj.has_tag("platform") or obj.is_static)]
             
-        elif self.object_type in ["triangle", "star", "diamond"]:
-            # Simple bounding box for complex shapes
-            size = self.properties.get("size", 40)
-            return (obj_x - size <= x <= obj_x + size and 
-                   obj_y - size <= y <= obj_y + size)
-                   
-        elif self.object_type == "line":
-            # Simple line collision (check if point is near line)
-            end_x = self.properties.get("end_x", obj_x + 100)
-            end_y = self.properties.get("end_y", obj_y)
-            width = self.properties.get("width", 2)
+            on_ground = self.is_on_ground(platforms)
             
-            # Distance from point to line
-            line_length = ((end_x - obj_x) ** 2 + (end_y - obj_y) ** 2) ** 0.5
-            if line_length == 0:
-                return ((x - obj_x) ** 2 + (y - obj_y) ** 2) <= (width ** 2)
-            
-            t = max(0, min(1, ((x - obj_x) * (end_x - obj_x) + (y - obj_y) * (end_y - obj_y)) / (line_length ** 2)))
-            projection_x = obj_x + t * (end_x - obj_x)
-            projection_y = obj_y + t * (end_y - obj_y)
-            
-            distance = ((x - projection_x) ** 2 + (y - projection_y) ** 2) ** 0.5
-            return distance <= width
-            
-        elif self.object_type == "sprite":
-            width = self.properties.get("width", 32)
-            height = self.properties.get("height", 32)
-            return (obj_x <= x <= obj_x + width and 
-                   obj_y <= y <= obj_y + height)
+            if on_ground:
+                # Ground friction - stronger, only horizontal
+                friction_factor = max(0.0, 1.0 - (self.friction * 12.0 * delta_time))
+                vx, vy = self.velocity
+                self.velocity = (vx * friction_factor, vy)
+            else:
+                # Air resistance - much weaker
+                friction_factor = max(0.0, 1.0 - (self.friction * 2.0 * delta_time))
+                vx, vy = self.velocity
+                self.velocity = (vx * friction_factor, vy * 0.999)
         
-        return False
+        # Limit maximum velocities to prevent crazy physics
+        vx, vy = self.velocity
+        max_vel = 600.0
+        if abs(vx) > max_vel:
+            vx = max_vel if vx > 0 else -max_vel
+        if abs(vy) > max_vel:
+            vy = max_vel if vy > 0 else -max_vel
+        self.velocity = (vx, vy)
+        
+        # Update position from velocity
+        x, y = self.position
+        vx, vy = self.velocity
+        self.position = (x + vx * delta_time, y + vy * delta_time)
+        
+        # Reset acceleration for next frame
+        self.acceleration = (0.0, 0.0)
     
     def get_bounds(self) -> Tuple[float, float, float, float]:
-        """Get object bounding box (x1, y1, x2, y2)"""
+        """Get bounding box (left, top, right, bottom)"""
         x, y = self.position
         
-        if self.object_type == "rectangle":
+        if self.object_type == "rectangle" or self.object_type == "sprite":
             width = self.properties.get("width", 50)
             height = self.properties.get("height", 50)
             return (x, y, x + width, y + height)
-            
+        
         elif self.object_type == "circle":
             radius = self.properties.get("radius", 25)
             return (x - radius, y - radius, x + radius, y + radius)
-            
-        elif self.object_type == "sprite":
-            width = self.properties.get("width", 32)
-            height = self.properties.get("height", 32)
-            return (x, y, x + width, y + height)
         
-        return (x, y, x, y)
+        else:
+            # Default rectangle
+            return (x, y, x + 50, y + 50)
     
-    def distance_to(self, other: 'GameObject') -> float:
-        """Calculate distance to another object"""
-        x1, y1 = self.position
-        x2, y2 = other.position
-        return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+    def contains_point(self, px: float, py: float) -> bool:
+        """Check if point is inside object"""
+        if self.object_type == "circle":
+            x, y = self.position
+            radius = self.properties.get("radius", 25)
+            distance = math.sqrt((px - x) ** 2 + (py - y) ** 2)
+            return distance <= radius
+        else:
+            bounds = self.get_bounds()
+            return (bounds[0] <= px <= bounds[2] and 
+                   bounds[1] <= py <= bounds[3])
     
-    def add_child(self, child: 'GameObject'):
-        """Add a child object"""
-        if child not in self.children:
-            self.children.append(child)
-            child.parent = self
+    def is_colliding_with(self, other: 'GameObject') -> bool:
+        """Check collision with another object"""
+        if not self.collision_enabled or not other.collision_enabled:
+            return False
+        
+        bounds1 = self.get_bounds()
+        bounds2 = other.get_bounds()
+        
+        # AABB collision detection
+        return (bounds1[0] < bounds2[2] and bounds1[2] > bounds2[0] and
+                bounds1[1] < bounds2[3] and bounds1[3] > bounds2[1])
     
-    def remove_child(self, child: 'GameObject'):
-        """Remove a child object"""
-        if child in self.children:
-            self.children.remove(child)
-            child.parent = None
+    def is_on_ground(self, objects=None) -> bool:
+        """Check if object is on ground or platform"""
+        if not objects and self.scene:
+            objects = [obj for obj in self.scene.objects.values() 
+                      if obj != self and (obj.has_tag("platform") or obj.is_static)]
+        elif not objects:
+            return False
+        
+        my_bounds = self.get_bounds()
+        
+        # Don't consider grounded if moving upward
+        if self.velocity[1] < -10:  # Moving upward
+            return False
+        
+        for obj in objects:
+            if obj == self or not obj.is_static:
+                continue
+                
+            obj_bounds = obj.get_bounds()
+            
+            # Check horizontal overlap with some margin
+            horizontal_overlap = (my_bounds[0] < obj_bounds[2] - 3 and my_bounds[2] > obj_bounds[0] + 3)
+            
+            # Check if we're very close to the top of this object
+            vertical_distance = my_bounds[3] - obj_bounds[1]
+            
+            # We're on ground if:
+            # 1. Horizontally overlapping
+            # 2. Bottom of this object is very close to top of platform
+            # 3. Not moving up
+            if (horizontal_overlap and 
+                vertical_distance >= -3 and 
+                vertical_distance <= 8 and
+                self.velocity[1] >= -10):
+                # Set ground flag when detected
+                self._on_ground = True
+                return True
+        
+        # Clear ground flag if not on any platform
+        self._on_ground = False
+        return False
     
-    def serialize(self) -> Dict[str, Any]:
-        """Serialize object to dictionary"""
-        return {
-            "name": self.name,
-            "object_type": self.object_type,
-            "position": self.position,
-            "rotation": self.rotation,
-            "scale": self.scale,
-            "velocity": self.velocity,
-            "acceleration": self.acceleration,
-            "mass": self.mass,
-            "friction": self.friction,
-            "active": self.active,
-            "visible": self.visible,
-            "properties": self.properties,
-            "script_code": self.script_code,
-            "script_variables": self.script_variables
-        }
+    def resolve_collision_with(self, other: 'GameObject', delta_time: float):
+        """Resolve collision with another object"""
+        if not self.is_colliding_with(other):
+            return
+        
+        # Don't resolve if both objects are static
+        if self.is_static and other.is_static:
+            return
+        
+        bounds1 = self.get_bounds()
+        bounds2 = other.get_bounds()
+        
+        # Calculate overlap
+        overlap_x = min(bounds1[2], bounds2[2]) - max(bounds1[0], bounds2[0])
+        overlap_y = min(bounds1[3], bounds2[3]) - max(bounds1[1], bounds2[1])
+        
+        if overlap_x <= 0 or overlap_y <= 0:
+            return
+        
+        # Determine collision direction based on previous positions
+        center1_x = (bounds1[0] + bounds1[2]) / 2
+        center1_y = (bounds1[1] + bounds1[3]) / 2
+        center2_x = (bounds2[0] + bounds2[2]) / 2
+        center2_y = (bounds2[1] + bounds2[3]) / 2
+        
+        # Resolve based on smallest overlap
+        if overlap_x < overlap_y:
+            # Horizontal collision
+            if center1_x < center2_x:
+                # Move left object to the left
+                if not self.is_static:
+                    self.position = (bounds2[0] - (bounds1[2] - bounds1[0]), self.position[1])
+                    self.velocity = (-abs(self.velocity[0]) * self.bounce, self.velocity[1])
+                if not other.is_static:
+                    other.position = (bounds1[2], other.position[1])
+                    other.velocity = (abs(other.velocity[0]) * other.bounce, other.velocity[1])
+            else:
+                # Move right object to the right
+                if not self.is_static:
+                    self.position = (bounds2[2], self.position[1])
+                    self.velocity = (abs(self.velocity[0]) * self.bounce, self.velocity[1])
+                if not other.is_static:
+                    other.position = (bounds1[0] - (bounds2[2] - bounds2[0]), other.position[1])
+                    other.velocity = (-abs(other.velocity[0]) * other.bounce, other.velocity[1])
+        else:
+            # Vertical collision
+            if center1_y < center2_y:
+                # Move top object up (landing on platform)
+                if not self.is_static:
+                    self.position = (self.position[0], bounds2[1] - (bounds1[3] - bounds1[1]))
+                    self.velocity = (self.velocity[0], 0)  # Stop falling
+                    self._on_ground = True  # Set ground flag when landing
+                if not other.is_static:
+                    other.position = (other.position[0], bounds1[3])
+                    other.velocity = (other.velocity[0], abs(other.velocity[1]) * other.bounce)
+            else:
+                # Move bottom object down (hitting from below)
+                if not self.is_static:
+                    self.position = (self.position[0], bounds2[3])
+                    self.velocity = (self.velocity[0], abs(self.velocity[1]) * self.bounce)
+                if not other.is_static:
+                    other.position = (other.position[0], bounds1[1] - (bounds2[3] - bounds2[1]))
+                    other.velocity = (other.velocity[0], 0)
+                    other._on_ground = True  # Set ground flag when landing
     
-    def deserialize(self, data: Dict[str, Any]):
-        """Deserialize object from dictionary"""
-        self.name = data.get("name", "GameObject")
-        self.object_type = data.get("object_type", "rectangle")
-        self.position = tuple(data.get("position", (0.0, 0.0)))
-        self.rotation = data.get("rotation", 0.0)
-        self.scale = tuple(data.get("scale", (1.0, 1.0)))
-        self.velocity = tuple(data.get("velocity", (0.0, 0.0)))
-        self.acceleration = tuple(data.get("acceleration", (0.0, 0.0)))
-        self.mass = data.get("mass", 1.0)
-        self.friction = data.get("friction", 0.0)
-        self.active = data.get("active", True)
-        self.visible = data.get("visible", True)
-        self.properties = data.get("properties", {})
-        self.script_code = data.get("script_code", "")
-        self.script_variables = data.get("script_variables", {})
+    def set_property(self, name: str, value: Any):
+        """Set a property"""
+        if name == "position":
+            if isinstance(value, dict) and "x" in value and "y" in value:
+                self.position = (value["x"], value["y"])
+            elif isinstance(value, (list, tuple)) and len(value) >= 2:
+                self.position = (value[0], value[1])
+        elif name == "velocity":
+            if isinstance(value, dict) and "x" in value and "y" in value:
+                self.velocity = (value["x"], value["y"])
+            elif isinstance(value, (list, tuple)) and len(value) >= 2:
+                self.velocity = (value[0], value[1])
+        elif name == "visible":
+            self.visible = bool(value)
+        elif name == "active":
+            self.active = bool(value)
+        else:
+            self.properties[name] = value
+    
+    def get_property(self, name: str, default=None):
+        """Get a property"""
+        if name == "position":
+            return {"x": self.position[0], "y": self.position[1]}
+        elif name == "velocity":
+            return {"x": self.velocity[0], "y": self.velocity[1]}
+        elif name == "visible":
+            return self.visible
+        elif name == "active":
+            return self.active
+        else:
+            return self.properties.get(name, default)
     
     def add_tag(self, tag: str):
-        """Add tag to object"""
+        """Add a tag"""
         if tag not in self.tags:
             self.tags.append(tag)
     
     def remove_tag(self, tag: str):
-        """Remove tag from object"""
+        """Remove a tag"""
         if tag in self.tags:
             self.tags.remove(tag)
     
@@ -339,81 +380,102 @@ class GameObject:
         """Check if object has tag"""
         return tag in self.tags
     
-    def take_damage(self, damage: float) -> bool:
-        """Take damage and return True if destroyed"""
-        actual_damage = max(0, damage - self.defense)
-        self.health -= actual_damage
+    def start_timer(self, name: str, duration: float):
+        """Start a timer"""
+        self.timers[name] = duration
+    
+    def get_timer(self, name: str) -> float:
+        """Get remaining time on timer"""
+        return self.timers.get(name, 0.0)
+    
+    def is_timer_finished(self, name: str) -> bool:
+        """Check if timer is finished"""
+        return name not in self.timers
+    
+    def move_towards(self, target_pos: Tuple[float, float], speed: float):
+        """Move towards target position"""
+        tx, ty = target_pos
+        x, y = self.position
         
-        if self.health <= 0:
-            self.health = 0
+        dx = tx - x
+        dy = ty - y
+        distance = math.sqrt(dx * dx + dy * dy)
+        
+        if distance > 0:
+            vx = (dx / distance) * speed
+            vy = (dy / distance) * speed
+            self.velocity = (vx, vy)
+    
+    def look_at(self, target_pos: Tuple[float, float]):
+        """Look at target position"""
+        tx, ty = target_pos
+        x, y = self.position
+        
+        dx = tx - x
+        dy = ty - y
+        
+        self.rotation = math.degrees(math.atan2(dy, dx))
+    
+    def apply_force(self, fx: float, fy: float):
+        """Apply force to object"""
+        if self.mass > 0:
+            ax, ay = self.acceleration
+            self.acceleration = (ax + fx / self.mass, ay + fy / self.mass)
+    
+    def take_damage(self, damage: float) -> bool:
+        """Take damage and return if destroyed"""
+        self.stats["health"] -= damage
+        if self.stats["health"] <= 0:
+            self.stats["health"] = 0
             self.destroyed = True
             return True
         return False
     
     def heal(self, amount: float):
-        """Heal the object"""
-        self.health = min(self.max_health, self.health + amount)
+        """Heal object"""
+        self.stats["health"] = min(self.stats["max_health"], 
+                                  self.stats["health"] + amount)
+    
+    def get_stat(self, stat_name: str) -> float:
+        """Get stat value"""
+        return self.stats.get(stat_name, 0.0)
     
     def add_item(self, item: Dict[str, Any]):
         """Add item to inventory"""
+        # Check if item already exists
+        for existing_item in self.inventory:
+            if existing_item["name"] == item["name"]:
+                existing_item["quantity"] = existing_item.get("quantity", 1) + item.get("quantity", 1)
+                return
+        
+        # Add new item
         self.inventory.append(item)
     
     def remove_item(self, item_name: str) -> bool:
         """Remove item from inventory"""
         for i, item in enumerate(self.inventory):
-            if item.get("name") == item_name:
-                del self.inventory[i]
+            if item["name"] == item_name:
+                quantity = item.get("quantity", 1)
+                if quantity > 1:
+                    item["quantity"] = quantity - 1
+                else:
+                    del self.inventory[i]
                 return True
         return False
     
     def has_item(self, item_name: str) -> bool:
-        """Check if has item in inventory"""
-        return any(item.get("name") == item_name for item in self.inventory)
+        """Check if has item"""
+        for item in self.inventory:
+            if item["name"] == item_name:
+                return True
+        return False
     
     def equip_item(self, slot: str, item: Dict[str, Any]):
-        """Equip item in slot"""
+        """Equip item"""
         self.equipment[slot] = item
     
-    def get_stat(self, stat_name: str, default: float = 0.0) -> float:
-        """Get stat value including equipment bonuses"""
-        base_value = self.stats.get(stat_name, default)
-        
-        # Add equipment bonuses
-        for item in self.equipment.values():
-            if "stats" in item and stat_name in item["stats"]:
-                base_value += item["stats"][stat_name]
-        
-        return base_value
-    
-    def set_animation(self, animation_name: str):
-        """Set current animation"""
-        if animation_name in self.animations:
-            self.current_animation = animation_name
-            self.animation_frame = 0
-    
-    def add_animation(self, name: str, frames: List[int], speed: float = 1.0, loop: bool = True):
-        """Add animation definition"""
-        self.animations[name] = {
-            "frames": frames,
-            "speed": speed,
-            "loop": loop,
-            "current_frame": 0
-        }
-    
-    def start_timer(self, timer_name: str, duration: float):
-        """Start a timer"""
-        self.timers[timer_name] = duration
-    
-    def get_timer(self, timer_name: str) -> float:
-        """Get remaining time on timer"""
-        return self.timers.get(timer_name, 0.0)
-    
-    def is_timer_finished(self, timer_name: str) -> bool:
-        """Check if timer is finished"""
-        return self.timers.get(timer_name, 0.0) <= 0.0
-    
     def set_patrol_route(self, points: List[Tuple[float, float]]):
-        """Set patrol route for AI"""
+        """Set patrol route"""
         self.patrol_points = points
         self.current_patrol_index = 0
     
@@ -426,37 +488,157 @@ class GameObject:
         self.current_patrol_index = (self.current_patrol_index + 1) % len(self.patrol_points)
         return point
     
-    def look_at(self, target_pos: Tuple[float, float]):
-        """Look at target position"""
-        dx = target_pos[0] - self.position[0]
-        dy = target_pos[1] - self.position[1]
-        self.rotation = math.atan2(dy, dx) * (180 / math.pi)
+    def set_sprite(self, sprite_name: str):
+        """Set sprite for this object"""
+        from engine.asset_manager import asset_manager
+        if asset_manager.get_image(sprite_name):
+            self.sprite_name = sprite_name
+            self.object_type = "sprite"
+            return True
+        return False
     
-    def move_towards(self, target_pos: Tuple[float, float], speed: float):
-        """Move towards target position"""
-        dx = target_pos[0] - self.position[0]
-        dy = target_pos[1] - self.position[1]
-        distance = math.sqrt(dx * dx + dy * dy)
+    def set_animation(self, animation_name: str, speed: float = 1.0, loop: bool = True):
+        """Set animation for this object"""
+        from engine.asset_manager import asset_manager
+        if asset_manager.get_animation(animation_name):
+            self.animation_name = animation_name
+            self.animation_speed = speed
+            self.animation_loop = loop
+            self.current_frame = 0
+            self.animation_time = 0.0
+            self.animation_playing = True
+            self.object_type = "animated_sprite"
+            return True
+        return False
+    
+    def play_animation(self, animation_name: str = None):
+        """Play animation"""
+        if animation_name:
+            self.set_animation(animation_name)
+        self.animation_playing = True
+    
+    def stop_animation(self):
+        """Stop animation"""
+        self.animation_playing = False
+    
+    def pause_animation(self):
+        """Pause animation"""
+        self.animation_playing = False
+    
+    def resume_animation(self):
+        """Resume animation"""
+        self.animation_playing = True
+    
+    def update_animation(self, delta_time: float):
+        """Update animation frame"""
+        if not self.animation_playing or not self.animation_name:
+            return
         
-        if distance > 0:
-            move_x = (dx / distance) * speed
-            move_y = (dy / distance) * speed
-            self.move(move_x, move_y)
-    
-    def is_colliding_with(self, other: 'GameObject') -> bool:
-        """Check collision with another object"""
-        bounds1 = self.get_bounds()
-        bounds2 = other.get_bounds()
+        from engine.asset_manager import asset_manager
+        animation = asset_manager.get_animation(self.animation_name)
+        if not animation:
+            return
         
-        return (bounds1[0] < bounds2[2] and bounds1[2] > bounds2[0] and
-                bounds1[1] < bounds2[3] and bounds1[3] > bounds2[1])
+        # Update animation time
+        self.animation_time += delta_time * self.animation_speed
+        
+        # Get frame duration from asset info
+        asset_info = asset_manager.get_asset_info(self.animation_name)
+        frame_duration = asset_info.get('frame_duration', 0.1) if asset_info else 0.1
+        
+        # Calculate current frame
+        total_frames = len(animation)
+        frame_index = int(self.animation_time / frame_duration)
+        
+        if self.animation_loop:
+            self.current_frame = frame_index % total_frames
+        else:
+            if frame_index >= total_frames:
+                self.current_frame = total_frames - 1
+                self.animation_playing = False
+            else:
+                self.current_frame = frame_index
     
-    def clone(self) -> 'GameObject':
-        """Create a copy of this object"""
-        clone = GameObject()
-        clone.deserialize(self.serialize())
-        clone.id = ""  # Will be assigned when added to scene
-        return clone
+    def get_current_sprite(self):
+        """Get current sprite surface"""
+        from engine.asset_manager import asset_manager
+        
+        if self.animation_name:
+            return asset_manager.get_animation_frame(self.animation_name, self.current_frame)
+        elif self.sprite_name:
+            return asset_manager.get_image(self.sprite_name)
+        return None
     
-    def __str__(self) -> str:
-        return f"GameObject(id={self.id}, name={self.name}, type={self.object_type}, pos={self.position})"
+    def play_sound(self, sound_name: str):
+        """Play sound effect"""
+        from engine.asset_manager import asset_manager
+        return asset_manager.play_sound(sound_name)
+    
+    def execute_script(self):
+        """Execute attached script"""
+        if not self.script_code:
+            return
+        
+        try:
+            from scripting.axscript_interpreter import AXScriptInterpreter
+            interpreter = AXScriptInterpreter()
+            result = interpreter.execute(self.script_code, self)
+            
+            if not result["success"] and result["error"]:
+                print(f"Script error in {self.name}: {result['error']}")
+        except Exception as e:
+            print(f"Failed to execute script for {self.name}: {e}")
+    
+    def serialize(self) -> Dict[str, Any]:
+        """Serialize object to dictionary"""
+        return {
+            "name": self.name,
+            "type": self.object_type,
+            "position": self.position,
+            "velocity": self.velocity,
+            "rotation": self.rotation,
+            "scale": self.scale,
+            "visible": self.visible,
+            "active": self.active,
+            "mass": self.mass,
+            "friction": self.friction,
+            "bounce": self.bounce,
+            "gravity_scale": self.gravity_scale,
+            "is_static": self.is_static,
+            "collision_enabled": self.collision_enabled,
+            "collision_layer": self.collision_layer,
+            "properties": self.properties,
+            "tags": self.tags,
+            "script_code": self.script_code,
+            "stats": self.stats,
+            "inventory": self.inventory,
+            "equipment": self.equipment,
+            "ai_state": self.ai_state,
+            "patrol_points": self.patrol_points
+        }
+    
+    def deserialize(self, data: Dict[str, Any]):
+        """Deserialize object from dictionary"""
+        self.name = data.get("name", "Unknown")
+        self.object_type = data.get("type", "rectangle")
+        self.position = tuple(data.get("position", (0, 0)))
+        self.velocity = tuple(data.get("velocity", (0, 0)))
+        self.rotation = data.get("rotation", 0.0)
+        self.scale = tuple(data.get("scale", (1.0, 1.0)))
+        self.visible = data.get("visible", True)
+        self.active = data.get("active", True)
+        self.mass = data.get("mass", 1.0)
+        self.friction = data.get("friction", 0.1)
+        self.bounce = data.get("bounce", 0.8)
+        self.gravity_scale = data.get("gravity_scale", 1.0)
+        self.is_static = data.get("is_static", False)
+        self.collision_enabled = data.get("collision_enabled", True)
+        self.collision_layer = data.get("collision_layer", "default")
+        self.properties = data.get("properties", {})
+        self.tags = data.get("tags", [])
+        self.script_code = data.get("script_code", "")
+        self.stats = data.get("stats", self.stats)
+        self.inventory = data.get("inventory", [])
+        self.equipment = data.get("equipment", {})
+        self.ai_state = data.get("ai_state", "idle")
+        self.patrol_points = data.get("patrol_points", [])

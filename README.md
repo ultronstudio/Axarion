@@ -1,4 +1,3 @@
-
 # 🎮 Axarion Engine - Code-Only Game Engine
 
 A powerful 2D game engine designed for programmers who prefer writing games in pure code!
@@ -7,8 +6,8 @@ A powerful 2D game engine designed for programmers who prefer writing games in p
 
 - **Pure Code Approach**: No GUI editor - write games directly in code
 - **AXScript Integration**: Built-in scripting language for game logic
-- **Pygame-Based Rendering**: Fast 2D graphics and input handling
-- **Physics System**: Built-in physics simulation
+- **Asset Management**: Complete system for images, sounds, and animations
+- **Physics System**: Built-in 2D physics simulation
 - **Audio Support**: Sound effects and background music
 - **Particle Effects**: Explosions, fire, smoke and more
 - **Animation System**: Smooth object animations
@@ -18,32 +17,41 @@ A powerful 2D game engine designed for programmers who prefer writing games in p
 
 1. **Run the sample game:**
 ```bash
-python main.py
+python test_fixed_engine.py
 ```
 
-2. **Create your own game:**
-Edit the `create_your_game()` function in `main.py` to build your game!
+2. **Run the assets demo:**
+```bash
+python test_assets_demo.py
+```
+
+3. **Create sample assets:**
+```bash
+python assets/create_sample_assets.py
+```
 
 ## 🎯 Basic Game Structure
 
 ```python
 from engine.core import AxarionEngine
 from engine.game_object import GameObject
+from engine.asset_manager import asset_manager
 
 # Create engine
 engine = AxarionEngine(800, 600)
 engine.initialize()
+
+# Load assets
+asset_manager.load_all_assets()
 
 # Create scene
 scene = engine.create_scene("Main")
 engine.current_scene = scene
 
 # Create game object
-player = GameObject("Player", "rectangle")
+player = GameObject("Player", "sprite")
 player.position = (100, 100)
-player.set_property("width", 50)
-player.set_property("height", 50)
-player.set_property("color", (255, 100, 100))
+player.set_sprite("ship")
 
 # Add game logic with AXScript
 player.script_code = """
@@ -68,8 +76,8 @@ engine.run()
 
 - **rectangle**: Rectangular objects with width/height
 - **circle**: Circular objects with radius
-- **diamond**: Diamond-shaped objects
-- **video**: Video display objects
+- **sprite**: Image-based objects
+- **animated_sprite**: Objects with frame animations
 
 ## 📝 AXScript Reference
 
@@ -104,91 +112,35 @@ playMusic("file.mp3")     // Play background music
 setVolume(music, sfx)     // Set audio volumes
 ```
 
-## 🎨 Creating Game Objects
+## 🎨 Asset Management
 
+### Loading Assets
 ```python
-# Rectangle
-obj = GameObject("MyRect", "rectangle")
-obj.set_property("width", 100)
-obj.set_property("height", 50)
-obj.set_property("color", (255, 0, 0))
+from engine.asset_manager import asset_manager
 
-# Circle
-obj = GameObject("MyCircle", "circle")
-obj.set_property("radius", 30)
-obj.set_property("color", (0, 255, 0))
+# Load image
+asset_manager.load_image("ship", "assets/images/ship.png")
 
-# Diamond
-obj = GameObject("MyDiamond", "diamond")
-obj.set_property("size", 40)
-obj.set_property("color", (0, 0, 255))
+# Load sound
+asset_manager.load_sound("laser", "assets/sounds/laser.wav")
+
+# Load animation from folder
+asset_manager.load_animation("explosion", "assets/animations/explosion/")
+
+# Load all assets automatically
+asset_manager.load_all_assets()
 ```
 
-## 🎯 Example Games
-
-### Simple Platformer Player
-```python
-player = GameObject("Player", "rectangle")
-player.position = (100, 300)
-player.set_property("width", 40)
-player.set_property("height", 60)
-player.script_code = """
-var speed = 300;
-var jumpPower = 500;
-var gravity = 981;
-var velocityY = 0;
-var onGround = false;
-
-function update() {
-    // Horizontal movement
-    if (keyPressed("ArrowLeft")) {
-        move(-speed * 0.016, 0);
-    }
-    if (keyPressed("ArrowRight")) {
-        move(speed * 0.016, 0);
-    }
-    
-    // Jumping
-    if (keyJustPressed(" ") && onGround) {
-        velocityY = -jumpPower;
-        onGround = false;
-    }
-    
-    // Apply gravity
-    velocityY += gravity * 0.016;
-    move(0, velocityY * 0.016);
-    
-    // Simple ground collision
-    var pos = getProperty("position");
-    if (pos.y > 500) {
-        setProperty("position", {x: pos.x, y: 500});
-        velocityY = 0;
-        onGround = true;
-    }
-}
-"""
+### Asset Folder Structure
 ```
-
-### Spinning Enemy
-```python
-enemy = GameObject("Enemy", "circle")
-enemy.position = (400, 200)
-enemy.script_code = """
-var angle = 0;
-var centerX = 400;
-var centerY = 200;
-
-function update() {
-    angle += 0.05;
-    var x = centerX + cos(angle) * 100;
-    var y = centerY + sin(angle) * 50;
-    setProperty("position", {x: x, y: y});
-    
-    // Change color
-    var red = (sin(angle) + 1) * 127;
-    setProperty("color", red + ",100,100");
-}
-"""
+assets/
+├── images/          # Images (.png, .jpg, .gif, .bmp)
+├── sounds/          # Sounds (.wav, .mp3, .ogg)
+├── animations/      # Animations (folders with frames)
+│   ├── explosion/
+│   ├── spinning_coin/
+│   └── engine_thrust/
+└── fonts/           # Fonts (.ttf, .otf)
 ```
 
 ## 🏗️ Engine Architecture
@@ -199,6 +151,7 @@ function update() {
 - `engine/renderer.py` - Graphics rendering
 - `engine/input_system.py` - Input handling
 - `engine/physics.py` - Physics simulation
+- `engine/asset_manager.py` - Asset loading and management
 - `scripting/` - AXScript interpreter
 
 ## 🎪 No Editor - Pure Code!
@@ -214,6 +167,6 @@ Perfect for:
 
 ## 🚀 Get Started
 
-Run `python main.py` to see the sample game, then edit `create_your_game()` to build your masterpiece!
+Run `python test_fixed_engine.py` to see the physics demo, or `python test_assets_demo.py` to see the asset system in action!
 
 Happy coding! 🎮✨
