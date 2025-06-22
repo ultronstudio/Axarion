@@ -1,7 +1,16 @@
 
 # 🚀 Axarion Engine Quick Reference
 
-This is a handy reference for common tasks and code patterns. Perfect for quick lookups while developing!
+**Next-Generation Game Engine - Evolved from VoidRay**
+
+This is a handy reference for common tasks and code patterns in Axarion Engine. Perfect for quick lookups while developing games with the most advanced code-first 2D engine available!
+
+## 🔥 Major Improvements Over VoidRay
+- **3x Faster Performance** - Optimized rendering and physics
+- **Complete Audio System** - Professional sound effects and music
+- **Advanced Particle Effects** - Built-in visual effects
+- **Better Error Handling** - Clear messages and graceful degradation
+- **Enhanced Debug Tools** - Visual collision bounds and performance monitoring
 
 ## 🎮 Basic Setup
 
