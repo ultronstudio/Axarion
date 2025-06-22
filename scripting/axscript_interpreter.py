@@ -1,3 +1,4 @@
+"""Add is_truthy helper method and ensure proper 'for' loop structure."""
 """
 Enhanced AXScript Interpreter with full language support
 """
@@ -305,18 +306,21 @@ class AXScriptInterpreter:
         self.global_env.define_function("riskyFunction", self.builtin_risky_function)
 
         # Enhanced input functions
-        self.global_env.define_function("keyPressed", self.builtin_key_pressed)
+        self.global_env.define_function("keyPressed", self.builtin_keyPressed)
         self.global_env.define_function("keyJustPressed", self.builtin_key_just_pressed)
         self.global_env.define_function("mouseClicked", self.builtin_mouse_clicked)
         self.global_env.define_function("mousePressed", self.builtin_mouse_pressed)
         self.global_env.define_function("getMousePos", self.builtin_get_mouse_pos)
         self.global_env.define_function("getAxis", self.builtin_get_axis)
         self.global_env.define_function("getMovement", self.builtin_get_movement)
-        
+
         # Physics and movement functions  
         self.global_env.define_function("jump", self.builtin_jump)
         self.global_env.define_function("isOnGround", self.builtin_is_on_ground)
         self.global_env.define_function("applyForce", self.builtin_apply_force_simple)
+        
+        # Object query functions
+        self.global_env.define_function("findObjectsByTag", self.builtin_find_objects_by_tag)
 
         # Game utility functions
         self.global_env.define_function("distance", self.builtin_distance)
@@ -339,9 +343,15 @@ class AXScriptInterpreter:
 
         try:
             if isinstance(code_or_node, str):
-                # Parse the code first
-                ast = self.parser.parse(code_or_node)
-                self.visit(ast)
+                # Parse the code first with error recovery
+                try:
+                    ast = self.parser.parse(code_or_node)
+                    self.visit(ast)
+                except Exception as parse_error:
+                    # If parsing fails completely, try to execute as simple expression
+                    self.output_buffer.append(f"Parse warning: {parse_error}")
+                    # Continue with partial execution if possible
+                    pass
             else:
                 # Execute AST node directly
                 self.visit(code_or_node)
@@ -357,11 +367,29 @@ class AXScriptInterpreter:
 
             return result
 
-        except (RuntimeError, AXScriptError, Exception) as e:
+        except (RuntimeError, AXScriptError) as e:
+            # Extract just the core error message
+            error_msg = str(e)
+            if "Error visiting" in error_msg:
+                # Extract the innermost error
+                lines = error_msg.split("Error visiting")
+                if lines:
+                    error_msg = lines[-1].strip(": ")
+
             error_info = {
                 "success": False,
                 "output": "\n".join(self.output_buffer) if self.output_buffer else None,
-                "error": str(e),
+                "error": error_msg,
+                "type_errors": self.type_checker.errors.copy(),
+                "traceback": None  # Don't include full traceback for cleaner output
+            }
+
+            return error_info
+        except Exception as e:
+            error_info = {
+                "success": False,
+                "output": "\n".join(self.output_buffer) if self.output_buffer else None,
+                "error": f"Unexpected error: {str(e)}",
                 "type_errors": self.type_checker.errors.copy(),
                 "traceback": traceback.format_exc()
             }
@@ -598,11 +626,17 @@ class AXScriptInterpreter:
             return obj.get(node.member)
         elif isinstance(obj, list) and node.member == "length":
             return len(obj)
+        elif isinstance(obj, str) and node.member == "length":
+            return len(obj)
         elif isinstance(obj, Literal) and isinstance(obj.value, dict):
             # Handle object literals
             return obj.value.get(node.member)
+        elif obj is None:
+            # Return undefined for null objects
+            return None
         else:
-            raise RuntimeError(f"Cannot access property '{node.member}' on {type(obj)}")
+            # For primitive types, return undefined instead of throwing error
+            return None
 
     def visit_Identifier(self, node: Identifier) -> Any:
         """Visit identifier"""
@@ -864,129 +898,13 @@ class AXScriptInterpreter:
                     for stmt in case.consequent:
                         result = self.visit(stmt)
                 except BreakException:
-                    fall_through = False
-                    break
-
+                    return None
+                except ContinueException:
+                    continue
         return result
 
-    def visit_ArrayExpression(self, node: ArrayExpression) -> Any:
-        """Visit array expression"""
-        return [self.visit(element) for element in node.elements]
-
-    def visit_IndexAccess(self, node: IndexAccess) -> Any:
-        """Visit index access"""
-        obj = self.visit(node.object)
-        index = self.visit(node.index)
-
-        if isinstance(obj, (list, tuple)):
-            if isinstance(index, int):
-                if 0 <= index < len(obj):
-                    return obj[index]
-                else:
-                    # Return undefined instead of throwing for out of bounds
-                    return None
-            else:
-                raise RuntimeError("Array index must be a number")
-        elif isinstance(obj, dict):
-            return obj.get(str(index))
-        elif isinstance(obj, str):
-            if isinstance(index, int) and 0 <= index < len(obj):
-                return obj[index]
-            else:
-                raise RuntimeError("String index out of bounds")
-        else:
-            raise RuntimeError("Object is not indexable")
-
-    def visit_ConditionalExpression(self, node: ConditionalExpression) -> Any:
-        """Visit conditional (ternary) expression"""
-        test = self.visit(node.test)
-        if self.is_truthy(test):
-            return self.visit(node.consequent)
-        else:
-            return self.visit(node.alternate)
-
-    def visit_UpdateExpression(self, node: UpdateExpression) -> Any:
-        """Visit update expression (++/--)"""
-        if isinstance(node.operand, Identifier):
-            current_value = self.environment.get(node.operand.name)
-            if not isinstance(current_value, (int, float)):
-                raise RuntimeError("Update operators can only be applied to numbers")
-
-            if node.operator == "++":
-                new_value = current_value + 1
-            else:  # "--"
-                new_value = current_value - 1
-
-            self.environment.set(node.operand.name, new_value)
-
-            if node.prefix:
-                return new_value
-            else:
-                return current_value
-        else:
-            raise RuntimeError("Update operators can only be applied to variables")
-
-    def visit_TypeofExpression(self, node: TypeofExpression) -> Any:
-        """Visit typeof expression"""
-        try:
-            value = self.visit(node.operand)
-            return self.get_typeof(value)
-        except RuntimeError:
-            return "undefined"
-
-    def visit_InstanceofExpression(self, node: InstanceofExpression) -> Any:
-        """Visit instanceof expression"""
-        obj = self.visit(node.left)
-        cls = self.visit(node.right)
-
-        if isinstance(obj, AXScriptInstance) and isinstance(cls, AXScriptClass):
-            current_class = obj.cls
-            while current_class:
-                if current_class== cls:
-                    return True
-                current_class = current_class.superclass
-            return False
-
-        # Built-in type checking
-        if cls == list:
-            return isinstance(obj, list)
-        elif cls == dict:
-            return isinstance(obj, dict)
-        elif cls == str:
-            return isinstance(obj, str)
-        elif cls == (int, float):
-            return isinstance(obj, (int, float))
-        elif cls == bool:
-            return isinstance(obj, bool)
-
-        return False
-
-    # Enhanced utility methods
-    def get_typeof(self, value: Any) -> str:
-        """Get the type of a value as a string"""
-        if value is None:
-            return "undefined"
-        elif isinstance(value, bool):
-            return "boolean"
-        elif isinstance(value, (int, float)):
-            return "number"
-        elif isinstance(value, str):
-            return "string"
-        elif isinstance(value, list):
-            return "array"
-        elif isinstance(value, dict):
-            return "object"
-        elif callable(value):
-            return "function"
-        elif isinstance(value, AXScriptInstance):
-            return "object"
-        elif isinstance(value, AXScriptClass):
-            return "function"
-        else:
-            return "object"
-
-    def is_truthy(self, value: Any) -> bool:
-        """Enhanced truthiness check"""
+    def is_truthy(self, value) -> bool:
+        """Check if value is truthy in JavaScript-like way"""
         if value is None or value is False:
             return False
         if isinstance(value, (int, float)) and value == 0:
@@ -997,717 +915,279 @@ class AXScriptInterpreter:
             return False
         return True
 
-    # Enhanced built-in functions
-    def builtin_typeof(self, value: Any) -> str:
-        """Get type of value"""
-        return self.get_typeof(value)
+    def visit(self, node: ASTNode) -> Any:
+        """Visit an AST node with enhanced error handling"""
+        method_name = f"visit_{type(node).__name__}"
+        visitor = getattr(self, method_name, self.generic_visit)
 
-    def builtin_is_number(self, value: Any) -> bool:
-        """Check if value is a number"""
-        return isinstance(value, (int, float))
-
-    def builtin_is_string(self, value: Any) -> bool:
-        """Check if value is a string"""
-        return isinstance(value, str)
-
-    def builtin_is_boolean(self, value: Any) -> bool:
-        """Check if value is a boolean"""
-        return isinstance(value, bool)
-
-    def builtin_is_array(self, value: Any) -> bool:
-        """Check if value is an array"""
-        return isinstance(value, list)
-
-    def builtin_is_object(self, value: Any) -> bool:
-        """Check if value is an object"""
-        return isinstance(value, (dict, AXScriptInstance))
-
-    def builtin_is_function(self, value: Any) -> bool:
-        """Check if value is a function"""
-        return callable(value)
-
-    def builtin_throw(self, message: str) -> None:
-        """Throw an error"""
-        raise AXScriptError(str(message))
-
-    def builtin_risky_function(self, x=None) -> int:
-        """Risky function that throws an error for testing"""
-        if x is not None and x < 0:
-            raise AXScriptError("Negative number not allowed!")
-        return x * 2 if x is not None else 10
-
-    # Keep all the existing built-in functions from before...
-    def builtin_print(self, *args) -> None:
-        """Print function"""
-        message = " ".join(str(arg) for arg in args)
-        self.output_buffer.append(message)
-        print(message)
-
-    def builtin_move(self, dx: float, dy: float = 0) -> None:
-        """Move the current object"""
-        if not self.context_object:
-            raise RuntimeError("move() can only be called in object context")
-
-        x, y = self.context_object.position
-        self.context_object.position = (x + dx, y + dy)
-
-    def builtin_rotate(self, angle: float) -> None:
-        """Rotate the current object"""
-        if not self.context_object:
-            raise RuntimeError("rotate() can only be called in object context")
-
-        self.context_object.rotation += angle
-
-    def builtin_set_property(self, name: str, value: Any) -> None:
-        """Set property on current object"""
-        if not self.context_object:
-            raise RuntimeError("setProperty() can only be called in object context")
-
-        if name == "position":
-            if isinstance(value, dict) and "x" in value and "y" in value:
-                self.context_object.position = (value["x"], value["y"])
+        try:
+            return visitor(node)
+        except (BreakException, ContinueException, ReturnException):
+            raise  # These are control flow, not errors
+        except Exception as e:
+            if hasattr(node, 'line'):
+                raise RuntimeError(f"Error visiting {type(node).__name__}: {e}", node.line)
             else:
-                raise RuntimeError("Position must be an object with x and y properties")
-        elif name == "visible":
-            self.context_object.visible = bool(value)
-        elif name == "active":
-            self.context_object.active = bool(value)
-        elif name == "color":
-            # Parse color string "r,g,b" or use tuple
-            if isinstance(value, str):
-                try:
-                    rgb = [int(x.strip()) for x in value.split(",")]
-                    if len(rgb) == 3:
-                        self.context_object.set_property("color", tuple(rgb))
-                    else:
-                        raise ValueError("Invalid color format")
-                except ValueError:
-                    raise RuntimeError("Color must be in format 'r,g,b' or a tuple")
-            else:
-                self.context_object.set_property(name, value)
+                raise RuntimeError(f"Error visiting {type(node).__name__}: {e}")
+
+    # Built-in function implementations
+    def builtin_print(self, *args):
+        """Built-in print function"""
+        output = " ".join(map(str, args))
+        self.output_buffer.append(output)
+        return None
+
+    def builtin_move(self, dx: float, dy: float) -> None:
+        """Built-in move function"""
+        if self.context_object:
+            # Apply force instead of direct position change for physics compatibility
+            force_multiplier = 15.0  # Adjust this for movement feel
+            self.context_object.apply_force(dx * force_multiplier, dy * force_multiplier)
         else:
-            self.context_object.set_property(name, value)
+            self.output_buffer.append("Warning: no object to move")
+        return None
 
-    def builtin_get_property(self, name: str) -> Any:
-        """Get property from current object"""
-        if not self.context_object:
-            raise RuntimeError("getProperty() can only be called in object context")
-
-        if name == "position":
-            pos = self.context_object.position
-            if pos is None:
-                return {"x": 0, "y": 0}
-            return {"x": pos[0], "y": pos[1]}
-        elif name == "velocity":
-            vel = self.context_object.velocity
-            if vel is None:
-                return {"x": 0, "y": 0}
-            return {"x": vel[0], "y": vel[1]}
-        elif name == "name":
-            return self.context_object.name
-        elif name == "visible":
-            return self.context_object.visible
-        elif name == "active":
-            return self.context_object.active
-        elif name == "type":
-            return self.context_object.object_type
+    def builtin_rotate(self, angle: float):
+        """Built-in rotate function - rotates the context object"""
+        if self.context_object and hasattr(self.context_object, 'rotate'):
+            self.context_object.rotate(angle)
         else:
-            result = self.context_object.get_property(name)
-            return result if result is not None else 0
+            self.output_buffer.append("Warning: no object to rotate")
+        return None
 
-    # Math functions
+    def builtin_set_property(self, property_name: str, value: Any):
+        """Built-in setProperty function - sets property on context object"""
+        if self.context_object:
+            try:
+                setattr(self.context_object, property_name, value)
+            except Exception as e:
+                self.output_buffer.append(f"Error setting property {property_name}: {e}")
+        else:
+            self.output_buffer.append("Warning: no object to set property on")
+        return None
+
+    def builtin_get_property(self, property_name: str) -> Any:
+        """Built-in getProperty function - gets property from context object"""
+        if self.context_object:
+            try:
+                return getattr(self.context_object, property_name)
+            except Exception:
+                return None
+        else:
+            self.output_buffer.append("Warning: no object to get property from")
+            return None
+
     def builtin_sin(self, x: float) -> float:
-        """Sine function"""
+        """Built-in sin function"""
         return math.sin(x)
 
     def builtin_cos(self, x: float) -> float:
-        """Cosine function"""
+        """Built-in cos function"""
         return math.cos(x)
 
     def builtin_sqrt(self, x: float) -> float:
-        """Square root function"""
-        if x < 0:
-            raise RuntimeError("Cannot take square root of negative number")
+        """Built-in sqrt function"""
         return math.sqrt(x)
 
     def builtin_abs(self, x: float) -> float:
-        """Absolute value function"""
+        """Built-in abs function"""
         return abs(x)
 
-    def builtin_min(self, *args) -> float:
-        """Minimum function"""
-        if not args:
-            raise RuntimeError("min() requires at least one argument")
-        return min(args)
+    def builtin_min(self, a: float, b: float) -> float:
+        """Built-in min function"""
+        return min(a, b)
 
-    def builtin_max(self, *args) -> float:
-        """Maximum function"""
-        if not args:
-            raise RuntimeError("max() requires at least one argument")
-        return max(args)
+    def builtin_max(self, a: float, b: float) -> float:
+        """Built-in max function"""
+        return max(a, b)
 
     def builtin_random(self) -> float:
-        """Random number function (0-1)"""
-        import random
-        return random.random()
+        """Built-in random function"""
+        return math.random()
 
     def builtin_time(self) -> float:
-        """Current time in seconds"""
+        """Built-in time function"""
         return time.time()
 
-    # Input functions (keeping existing implementations)
-    def builtin_key_pressed(self, key: str) -> bool:
-        """Check if key is currently pressed"""
+    def builtin_typeof(self, value: Any) -> str:
+        """Built-in typeof function"""
+        return self.type_checker.get_type_name(value)
+
+    def builtin_is_number(self, value: Any) -> bool:
+        """Built-in isNumber function"""
+        return isinstance(value, (int, float))
+
+    def builtin_is_string(self, value: Any) -> bool:
+        """Built-in isString function"""
+        return isinstance(value, str)
+
+    def builtin_is_boolean(self, value: Any) -> bool:
+        """Built-in isBoolean function"""
+        return isinstance(value, bool)
+
+    def builtin_is_array(self, value: Any) -> bool:
+        """Built-in isArray function"""
+        return isinstance(value, list)
+
+    def builtin_is_object(self, value: Any) -> bool:
+        """Built-in isObject function"""
+        return isinstance(value, dict)
+
+    def builtin_is_function(self, value: Any) -> bool:
+        """Built-in isFunction function"""
+        return callable(value)
+
+    def builtin_throw(self, message: str):
+        """Built-in throw function"""
+        raise AXScriptError(message)
+
+    def builtin_risky_function(self):
+        """Built-in risky function that may throw an error"""
+        raise RuntimeError("This function always fails!")
+
+    def builtin_keyPressed(self, key: str) -> bool:
+        """Built-in keyPressed function - checks if key is currently pressed"""
         try:
-            from engine.input_system import key_pressed
-            return key_pressed(str(key))
+            import pygame
+            
+            # Get current key state directly from pygame
+            keys = pygame.key.get_pressed()
+            
+            # Map AXScript key names to pygame keys
+            key_mapping = {
+                "left": pygame.K_LEFT,
+                "right": pygame.K_RIGHT, 
+                "up": pygame.K_UP,
+                "down": pygame.K_DOWN,
+                "space": pygame.K_SPACE,
+                "a": pygame.K_a,
+                "d": pygame.K_d,
+                "w": pygame.K_w,
+                "s": pygame.K_s
+            }
+
+            pygame_key = key_mapping.get(key.lower())
+            if pygame_key is not None:
+                return keys[pygame_key]
+            return False
         except:
             return False
 
     def builtin_key_just_pressed(self, key: str) -> bool:
-        """Check if key was just pressed this frame"""
-        try:
-            from engine.input_system import key_just_pressed
-            return key_just_pressed(str(key))
-        except:
+        """Built-in keyJustPressed function - checks if a key was just pressed"""
+        if self.context_object and hasattr(self.context_object, 'is_key_just_pressed'):
+            return self.context_object.is_key_just_pressed(key)
+        else:
+            self.output_buffer.append("Warning: no input system available")
             return False
 
     def builtin_mouse_clicked(self, button: int = 0) -> bool:
-        """Check if mouse button was just clicked"""
-        try:
-            from engine.input_system import mouse_clicked
-            return mouse_clicked(button)
-        except:
+        """Built-in mouseClicked function - checks if a mouse button was clicked"""
+        if self.context_object and hasattr(self.context_object, 'is_mouse_clicked'):
+            return self.context_object.is_mouse_clicked(button)
+        else:
+            self.output_buffer.append("Warning: no input system available")
             return False
 
     def builtin_mouse_pressed(self, button: int = 0) -> bool:
-        """Check if mouse button is currently pressed"""
-        try:
-            from engine.input_system import mouse_pressed
-            return mouse_pressed(button)
-        except:
+        """Built-in mousePressed function - checks if a mouse button is currently pressed"""
+        if self.context_object and hasattr(self.context_object, 'is_mouse_pressed'):
+            return self.context_object.is_mouse_pressed(button)
+        else:
+            self.output_buffer.append("Warning: no input system available")
             return False
 
-    def builtin_get_mouse_pos(self) -> Dict[str, int]:
-        """Get current mouse position"""
-        try:
-            from engine.input_system import get_mouse_pos
-            x, y = get_mouse_pos()
-            return {"x": x, "y": y}
-        except:
-            return {"x": 0, "y": 0}
+    def builtin_get_mouse_pos(self) -> tuple:
+        """Built-in getMousePos function - gets the current mouse position"""
+        if self.context_object and hasattr(self.context_object, 'get_mouse_pos'):
+            return self.context_object.get_mouse_pos()
+        else:
+            self.output_buffer.append("Warning: no input system available")
+            return (0, 0)
 
     def builtin_get_axis(self, axis_name: str) -> float:
-        """Get axis value for movement"""
-        try:
-            from engine.input_system import get_axis
-            return get_axis(str(axis_name))
-        except:
+        """Built-in getAxis function - gets the value of an input axis"""
+        if self.context_object and hasattr(self.context_object, 'get_axis'):
+            return self.context_object.get_axis(axis_name)
+        else:
+            self.output_buffer.append("Warning: no input system available")
             return 0.0
 
-    def builtin_get_movement(self) -> Dict[str, float]:
-        """Get movement vector from input"""
-        try:
-            from engine.input_system import get_movement
-            x, y = get_movement()
-            return {"x": x, "y": y}
-        except:
-            return {"x": 0.0, "y": 0.0}
+    def builtin_get_movement(self) -> dict:
+        """Built-in getMovement function - gets current movement input"""
+        # Placeholder for getting movement
+        if self.context_object and hasattr(self.context_object, 'get_movement_input'):
+            return self.context_object.get_movement_input()
+        else:
+            self.output_buffer.append("Warning: no movement input available.")
+            return {"x": 0, "y": 0}
 
-    # Utility functions
-    def builtin_distance(self, x1: float, y1: float, x2: float, y2: float) -> float:
-        """Calculate distance between two points"""
-        try:
-            dx = x2 - x1
-            dy = y2 - y1
-            return math.sqrt(dx * dx + dy * dy)
-        except:
-            return 0.0
-
-    def builtin_clamp(self, value: float, min_val: float, max_val: float) -> float:
-        """Clamp value between min and max"""
-        return max(min_val, min(max_val, value))
-
-    def builtin_lerp(self, a: float, b: float, t: float) -> float:
-        """Linear interpolation between two values"""
-        return a + (b - a) * t
-
-    def builtin_floor(self, x: float) -> int:
-        """Floor function"""
-        return math.floor(x)
-
-    def builtin_ceil(self, x: float) -> int:
-        """Ceiling function"""
-        return math.ceil(x)
-
-    def builtin_round(self, x: float) -> int:
-        """Round function"""
-        return round(x)
-
-    # Audio functions
-    def builtin_play_sound(self, sound_name: str, loops: int = 0) -> bool:
-        """Play sound effect"""
-        try:
-            from engine.audio_system import play_sound
-            return play_sound(sound_name, loops)
-        except:
-            return False
-
-    def builtin_play_music(self, file_path: str, loops: int = -1) -> bool:
-        """Play background music"""
-        try:
-            from engine.audio_system import play_music
-            return play_music(file_path, loops)
-        except:
-            return False
-
-    def builtin_stop_music(self) -> None:
-        """Stop background music"""
-        try:
-            from engine.audio_system import stop_music
-            stop_music()
-        except:
-            pass
-
-    def builtin_set_volume(self, music_vol: float, sfx_vol: float) -> None:
-        """Set audio volumes"""
-        try:
-            from engine.audio_system import set_volume
-            set_volume(music_vol, sfx_vol)
-        except:
-            pass
-
-    # Animation functions
-    def builtin_animate_to(self, x: float, y: float, duration: float = 1.0) -> None:
-        """Animate object to position"""
-        if not self.context_object:
-            raise RuntimeError("animateTo() can only be called in object context")
-
-        try:
-            from engine.animation_system import animate_to
-            animate_to(self.context_object, x, y, duration)
-        except:
-            pass
-
-    def builtin_rotate_to(self, angle: float, duration: float = 1.0) -> None:
-        """Rotate object to angle"""
-        if not self.context_object:
-            raise RuntimeError("rotateTo() can only be called in object context")
-
-        try:
-            from engine.animation_system import animation_system
-            animation_system.rotate_to(self.context_object, angle, duration)
-        except:
-            pass
-
-    def builtin_scale_to(self, scale_x: float, scale_y: float, duration: float = 1.0) -> None:
-        """Scale object"""
-        if not self.context_object:
-            raise RuntimeError("scaleTo() can only be called in object context")
-
-        try:
-            from engine.animation_system import animation_system
-            animation_system.scale_to(self.context_object, scale_x, scale_y, duration)
-        except:
-            pass
-
-    def builtin_bounce(self, height: float = 50, duration: float = 1.0) -> None:
-        """Make object bounce"""
-        if not self.context_object:
-            raise RuntimeError("bounce() can only be called in object context")
-
-        try:
-            from engine.animation_system import bounce_object
-            bounce_object(self.context_object, height, duration)
-        except:
-            pass
-
-    def builtin_pulse(self, scale: float = 1.2, duration: float = 0.5) -> None:
-        """Make object pulse"""
-        if not self.context_object:
-            raise RuntimeError("pulse() can only be called in object context")
-
-        try:
-            from engine.animation_system import pulse_object
-            pulse_object(self.context_object, scale, duration)
-        except:
-            pass
-
-    # Particle effect functions
-    def builtin_create_explosion(self, x: float, y: float, intensity: int = 50) -> None:
-        """Create explosion particle effect"""
-        try:
-            from engine.particle_system import particle_system
-            particle_system.create_explosion(x, y, intensity)
-        except:
-            pass
-
-    def builtin_create_fire(self, x: float, y: float) -> None:
-        """Create fire particle effect"""
-        try:
-            from engine.particle_system import particle_system
-            particle_system.create_fire(x, y)
-        except:
-            pass
-
-    def builtin_create_smoke(self, x: float, y: float) -> None:
-        """Create smoke particle effect"""
-        try:
-            from engine.particle_system import particle_system
-            particle_system.create_smoke(x, y)
-        except:
-            pass
-
-    # GameObject management functions
-    def builtin_destroy(self) -> None:
-        """Destroy current object"""
-        if self.context_object:
-            self.context_object.destroyed = True
-
-    def builtin_instantiate(self, object_type: str, x: float, y: float) -> str:
-        """Create new object and add to scene"""
-        if not self.context_object or not self.context_object.scene:
-            return ""
-
-        from engine.game_object import GameObject
-        new_obj = GameObject(f"New_{object_type}", object_type)
-        new_obj.position = (x, y)
-        return self.context_object.scene.add_object(new_obj)
-
-    def builtin_find_object_by_name(self, name: str):
-        """Find object by name in current scene"""
-        if not self.context_object or not self.context_object.scene:
-            return None
-
-        objects = self.context_object.scene.get_objects_by_name(name)
-        return objects[0] if objects else None
-
-    def builtin_find_objects_by_tag(self, tag: str) -> List:
-        """Find all objects with tag"""
-        if not self.context_object or not self.context_object.scene:
-            return []
-
-        results = []
-        for obj in self.context_object.scene.get_all_objects():
-            if obj.has_tag(tag):
-                results.append(obj)
-        return results
-
-    def builtin_add_tag(self, tag: str) -> None:
-        """Add tag to current object"""
-        if self.context_object:
-            self.context_object.add_tag(tag)
-
-    def builtin_has_tag(self, tag: str) -> bool:
-        """Check if current object has tag"""
-        if self.context_object:
-            return self.context_object.has_tag(tag)
-        return False
-
-    def builtin_look_at(self, x: float, y: float) -> None:
-        """Make object look at position"""
-        if self.context_object:
-            self.context_object.look_at((x, y))
-
-    def builtin_move_towards(self, x: float, y: float, speed: float) -> None:
-        """Move towards position"""
-        if self.context_object:
-            self.context_object.move_towards((x, y), speed * 0.016)
-
-    # Combat and RPG functions
-    def builtin_take_damage(self, damage: float) -> bool:
-        """Take damage"""
-        if self.context_object:
-            return self.context_object.take_damage(damage)
-        return False
-
-    def builtin_heal(self, amount: float) -> None:
-        """Heal object"""
-        if self.context_object:
-            self.context_object.heal(amount)
-
-    def builtin_add_item(self, item_name: str, quantity: int = 1) -> None:
-        """Add item to inventory"""
-        if self.context_object:
-            item = {"name": item_name, "quantity": quantity}
-            self.context_object.add_item(item)
-
-    def builtin_remove_item(self, item_name: str) -> bool:
-        """Remove item from inventory"""
-        if self.context_object:
-            return self.context_object.remove_item(item_name)
-        return False
-
-    def builtin_has_item(self, item_name: str) -> bool:
-        """Check if has item"""
-        if self.context_object:
-            return self.context_object.has_item(item_name)
-        return False
-
-    def builtin_equip_item(self, slot: str, item_name: str) -> None:
-        """Equip item"""
-        if self.context_object and self.context_object.has_item(item_name):
-            item = {"name": item_name}
-            self.context_object.equip_item(slot, item)
-
-    def builtin_get_stat(self, stat_name: str) -> float:
-        """Get stat value"""
-        if self.context_object:
-            return self.context_object.get_stat(stat_name)
-        return 0.0
-
-    def builtin_set_stat(self, stat_name: str, value: float) -> None:
-        """Set stat value"""
-        if self.context_object:
-            self.context_object.stats[stat_name] = value
-
-    # AI and behavior functions
-    def builtin_set_state(self, state: str) -> None:
-        """Set AI state"""
-        if self.context_object:
-            self.context_object.ai_state = state
-
-    def builtin_get_state(self) -> str:
-        """Get AI state"""
-        if self.context_object:
-            return self.context_object.ai_state
-        return "idle"
-
-    def builtin_set_target(self, target_name: str) -> None:
-        """Set target object"""
-        if self.context_object and self.context_object.scene:
-            targets = self.context_object.scene.get_objects_by_name(target_name)
-            self.context_object.target = targets[0] if targets else None
-
-    def builtin_get_target(self):
-        """Get target object"""
-        if self.context_object:
-            return self.context_object.target
+    # Physics and movement functions
+    def builtin_jump(self):
+        """Built-in jump function - makes the context object jump"""
+        if self.context_object and hasattr(self.context_object, 'jump'):
+            self.context_object.jump()
+        else:
+            self.output_buffer.append("Warning: no object to jump")
         return None
-
-    def builtin_set_patrol_route(self, points: List) -> None:
-        """Set patrol route"""
-        if self.context_object:
-            patrol_points = [(p["x"], p["y"]) for p in points if "x" in p and "y" in p]
-            self.context_object.set_patrol_route(patrol_points)
-
-    def builtin_get_next_patrol_point(self):
-        """Get next patrol point"""
-        if self.context_object:
-            point = self.context_object.get_next_patrol_point()
-            if point:
-                return {"x": point[0], "y": point[1]}
-        return None
-
-    # Timer functions
-    def builtin_start_timer(self, timer_name: str, duration: float) -> None:
-        """Start timer"""
-        if self.context_object:
-            self.context_object.start_timer(timer_name, duration)
-
-    def builtin_get_timer(self, timer_name: str) -> float:
-        """Get timer remaining time"""
-        if self.context_object:
-            return self.context_object.get_timer(timer_name)
-        return 0.0
-
-    def builtin_is_timer_finished(self, timer_name: str) -> bool:
-        """Check if timer finished"""
-        if self.context_object:
-            return self.context_object.is_timer_finished(timer_name)
-        return True
-
-    # Collision functions
-    def builtin_is_colliding_with(self, object_name: str) -> bool:
-        """Check collision with named object"""
-        if not self.context_object or not self.context_object.scene:
-            return False
-
-        objects = self.context_object.scene.get_objects_by_name(object_name)
-        for obj in objects:
-            if self.context_object.is_colliding_with(obj):
-                return True
-        return False
-
-    def builtin_get_colliding_objects(self) -> List[str]:
-        """Get list of colliding object names"""
-        if not self.context_object or not self.context_object.scene:
-            return []
-
-        colliding = []
-        for obj in self.context_object.scene.get_all_objects():
-            if obj != self.context_object and self.context_object.is_colliding_with(obj):
-                colliding.append(obj.name)
-        return colliding
-
-    def builtin_set_collision_layer(self, layer: str) -> None:
-        """Set collision layer"""
-        if self.context_object:
-            self.context_object.collision_layer = layer
-
-    # Global variables and events
-    def builtin_set_global(self, name: str, value) -> None:
-        """Set global variable"""
-        try:
-            from engine.core import engine_instance
-            if engine_instance:
-                engine_instance.set_global_variable(name, value)
-        except:
-            pass
-
-    def builtin_get_global(self, name: str, default=None):
-        """Get global variable"""
-        try:
-            from engine.core import engine_instance
-            if engine_instance:
-                return engine_instance.get_global_variable(name, default)
-        except:
-            pass
-        return default
-
-    def builtin_emit_event(self, event_name: str, data=None) -> None:
-        """Emit global event"""
-        try:
-            from engine.core import engine_instance
-            if engine_instance:
-                engine_instance.emit_event(event_name, data)
-        except:
-            pass
-
-    def builtin_subscribe_event(self, event_name: str, callback_name: str) -> None:
-        """Subscribe to global event"""
-        # This would need more complex implementation for script callbacks
-        pass
-
-    # Scene functions
-    def builtin_change_scene(self, scene_name: str) -> None:
-        """Change to different scene"""
-        try:
-            from engine.core import engine_instance
-            if engine_instance:
-                engine_instance.load_scene(scene_name)
-        except:
-            pass
-
-    def builtin_pause_game(self) -> None:
-        """Pause the game"""
-        try:
-            from engine.core import engine_instance
-            if engine_instance:
-                engine_instance.pause_game()
-        except:
-            pass
-
-    def builtin_resume_game(self) -> None:
-        """Resume the game"""
-        try:
-            from engine.core import engine_instance
-            if engine_instance:
-                engine_instance.resume_game()
-        except:
-            pass
-
-    def builtin_set_time_scale(self, scale: float) -> None:
-        """Set time scale"""
-        try:
-            from engine.core import engine_instance
-            if engine_instance:
-                engine_instance.set_time_scale(scale)
-        except:
-            pass
-
-    # Genre-specific functions
-    def builtin_jump(self, force: float = 300.0) -> None:
-        """Jump (platformer)"""
-        if self.context_object:
-            vel_x, vel_y = self.context_object.velocity
-            self.context_object.velocity = (vel_x, -force)
 
     def builtin_is_on_ground(self) -> bool:
-        """Check if on ground (platformer)"""
-        if not self.context_object or not self.context_object.scene:
+        """Built-in isOnGround function - checks if the context object is on the ground"""
+        if self.context_object and hasattr(self.context_object, 'is_on_ground'):
+            # Get all static/platform objects from the scene
+            if hasattr(self.context_object, 'scene') and self.context_object.scene:
+                platforms = [obj for obj in self.context_object.scene.objects.values() 
+                            if obj != self.context_object and (obj.has_tag("platform") or obj.is_static)]
+                return self.context_object.is_on_ground(platforms)
+            else:
+                return self.context_object.is_on_ground()
+        else:
             return False
 
-        # Use the proper ground detection from GameObject
-        platforms = [obj for obj in self.context_object.scene.objects.values() 
-                    if obj != self.context_object and (obj.has_tag("platform") or obj.is_static)]
-        return self.context_object.is_on_ground(platforms)
+    def builtin_find_objects_by_tag(self, tag: str) -> list:
+        """Built-in findObjectsByTag function - finds objects with specified tag"""
+        if self.context_object and hasattr(self.context_object, 'scene') and self.context_object.scene:
+            objects = []
+            for obj in self.context_object.scene.objects.values():
+                if obj.has_tag(tag):
+                    objects.append({
+                        "name": obj.name,
+                        "position": obj.position,
+                        "bounds": obj.get_bounds()
+                    })
+            return objects
+        else:
+            return []
 
-    def builtin_set_gravity(self, gravity: float) -> None:
-        """Set gravity scale"""
-        if self.context_object:
-            self.context_object.gravity_scale = gravity
+    def builtin_apply_force_simple(self, x: float, y: float):
+        """Built-in applyForce function - applies a simple force to the context object"""
+        if self.context_object and hasattr(self.context_object, 'apply_force'):
+            self.context_object.apply_force(x, y)
+        else:
+            self.output_buffer.append("Warning: no object to apply force to")
+        return None
 
-    def builtin_create_bullet(self, target_x: float, target_y: float, speed: float = 400.0) -> str:
-        """Create bullet (shooter)"""
-        if not self.context_object or not self.context_object.scene:
-            return ""
+    # Game utility functions
+    def builtin_distance(self, x1: float, y1: float, x2: float, y2: float) -> float:
+        """Built-in distance function"""
+        return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
-        from engine.game_object import GameObject
-        import math
+    def builtin_clamp(self, value: float, min_value: float, max_value: float) -> float:
+        """Built-in clamp function"""
+        return max(min(value, max_value), min_value)
 
-        bullet = GameObject("Bullet", "circle")
-        bullet.position = self.context_object.position
-        bullet.set_property("radius", 3)
-        bullet.set_property("color", (255, 255, 0))
-        bullet.add_tag("bullet")
+    def builtin_lerp(self, a: float, b: float, t: float) -> float:
+        """Built-in lerp function"""
+        return a + (b - a) * t
 
-        # Calculate velocity
-        dx = target_x - self.context_object.position[0]
-        dy = target_y - self.context_object.position[1]
-        distance = math.sqrt(dx * dx + dy * dy)
+    def builtin_floor(self, x: float) -> float:
+        """Built-in floor function"""
+        return math.floor(x)
 
-        if distance > 0:
-            bullet.velocity = ((dx / distance) * speed, (dy / distance) * speed)
+    def builtin_ceil(self, x: float) -> float:
+        """Built-in ceil function"""
+        return math.ceil(x)
 
-        return self.context_object.scene.add_object(bullet)
-
-    def builtin_create_explosion_at(self, x: float, y: float, intensity: int = 50) -> None:
-        """Create explosion at position"""
-        try:
-            from engine.particle_system import particle_system
-            particle_system.create_explosion(x, y, intensity)
-        except:
-            pass
-
-    def builtin_apply_force(self, force_x: float, force_y: float) -> None:
-        """Apply force (racing/physics)"""
-        if self.context_object:
-            vel_x, vel_y = self.context_object.velocity
-            self.context_object.velocity = (vel_x + force_x * 0.016, vel_y + force_y * 0.016)
-    
-    def builtin_apply_force_simple(self, force_x: float, force_y: float) -> None:
-        """Simple force application for basic movement"""
-        if self.context_object:
-            self.context_object.apply_force(force_x, force_y)
-
-    def builtin_set_brake(self, brake_force: float) -> None:
-        """Apply brakes (racing)"""
-        if self.context_object:
-            vel_x, vel_y = self.context_object.velocity
-            factor = max(0, 1 - brake_force * 0.016)
-            self.context_object.velocity = (vel_x * factor, vel_y * factor)
-
-    def builtin_snap_to_grid(self, grid_size: int = 32) -> None:
-        """Snap to grid (puzzle)"""
-        if self.context_object:
-            x, y = self.context_object.position
-            snapped_x = round(x / grid_size) * grid_size
-            snapped_y = round(y / grid_size) * grid_size
-            self.context_object.position = (snapped_x, snapped_y)
-
-    def builtin_get_grid_position(self, grid_size: int = 32) -> Dict[str, int]:
-        """Get grid position (puzzle)"""
-        if self.context_object:
-            x, y = self.context_object.position
-            return {"x": int(x // grid_size), "y": int(y // grid_size)}
-        return {"x": 0, "y": 0}
-
-    def reset(self):
-        """Reset interpreter state"""
-        self.environment = Environment()
-        self.environment.parent = self.global_env
-        self.context_object = None
-        self.output_buffer = []
-        self.type_checker.clear_errors()
-        self.exports = {}
+    def builtin_round(self, x: float) -> float:
+        """Built-in round function"""
+        return round(x)

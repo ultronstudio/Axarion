@@ -443,9 +443,8 @@ class AXScriptParser:
         try:
             return self.parse_assignment()
         except ParseError as e:
-            # Forcefully advance to prevent infinite loops
-            if not self.is_at_end():
-                self.advance()
+            # Try to recover to a safe state
+            self.recover_to_token([TokenType.SEMICOLON, TokenType.RIGHT_BRACE, TokenType.RIGHT_PAREN])
             return Literal(None, "null")
 
     def parse_assignment(self) -> Expression:

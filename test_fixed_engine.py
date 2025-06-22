@@ -45,29 +45,28 @@ def create_physics_test():
     player.friction = 0.8
     player.add_tag("player")
 
-    # Player script with improved jumping - compatible with new AXScript
+    # Player script with AXScript movement
     player.script_code = """
-var speed = 150;
+var speed = 8;
 var jumpForce = 350;
-
-// Use built-in ground checking function
-var onGround = true;
 
 // Horizontal movement
 if (keyPressed("left") || keyPressed("a")) {
-    move(-speed * 0.016, 0);
+    move(-speed, 0);
 }
 if (keyPressed("right") || keyPressed("d")) {
-    move(speed * 0.016, 0);
+    move(speed, 0);
 }
 
 // Jumping - only when on ground
-if ((keyPressed("up") || keyPressed("w") || keyPressed("space")) && onGround) {
-    var vel = getProperty("velocity");
-    setProperty("velocity", {x: vel.x, y: -jumpForce});
+if (keyPressed("up") || keyPressed("w") || keyPressed("space")) {
+    if (isOnGround()) {
+        var vel = getProperty("velocity");
+        setProperty("velocity", {x: vel.x, y: -jumpForce});
+    }
 }
 
-// Keep in bounds
+// Keep player in bounds
 var pos = getProperty("position");
 if (pos.x < 0) {
     setProperty("position", {x: 0, y: pos.y});
@@ -183,6 +182,10 @@ def main():
             events = pygame.event.get()
             keys = pygame.key.get_pressed()
 
+            # Update input system with events
+            from engine.input_system import input_system
+            input_system.update(events)
+
             for event in events:
                 if event.type == pygame.QUIT:
                     running = False
@@ -198,47 +201,33 @@ def main():
                             f"Debug mode: {'ON' if engine.renderer.debug_mode else 'OFF'}"
                         )
 
-            # Let AXScript handle player movement, but execute scripts safely
+            # Execute AXScript for player movement
             player = engine.current_scene.get_object("Player")
-            if player and hasattr(player,
-                                  'script_code') and player.script_code:
+            if player and hasattr(player, 'script_code') and player.script_code:
                 try:
-                    # Execute player script with error handling
+                    # Execute player script with AXScript interpreter
                     from scripting.axscript_interpreter import AXScriptInterpreter
                     interpreter = AXScriptInterpreter()
 
-                    # Execute player script directly
+                    # Execute player script
                     result = interpreter.execute(player.script_code, player)
 
                     if not result["success"]:
-                        print(
-                            f"Script error in {player.name}: {result['error']}"
-                        )
-                        # Fallback to manual movement if script fails
-                        move_speed = 150.0
-                        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                            player.apply_force(-move_speed * 2, 0)
-                        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                            player.apply_force(move_speed * 2, 0)
-                        if keys[pygame.K_SPACE] or keys[pygame.K_UP]:
-                            if player.is_on_ground([
-                                    obj for obj in
-                                    engine.current_scene.objects.values()
-                                    if obj.is_static
-                            ]):
-                                vx, vy = player.velocity
-                                player.velocity = (vx, -350)
+                        print(f"AXScript error: {result['error']}")
+                        # Fallback to basic movement if script fails
+                        if input_system.is_key_pressed("left"):
+                            player.apply_force(-200, 0)
+                        if input_system.is_key_pressed("right"):
+                            player.apply_force(200, 0)
 
                 except Exception as e:
-                    print(f"Script execution error: {e}")
-                    # Continue with game even if script fails
+                    print(f"AXScript execution error: {e}")
 
             # Update engine with error handling
             try:
                 engine.current_scene.update(delta_time)
             except Exception as e:
                 print(f"Scene update error: {e}")
-                # Continue running even with errors
 
             # Follow player with camera
             if player:
