@@ -17,114 +17,360 @@ from .particle_system import particle_system
 from .animation_system import animation_system
 
 class AxarionEngine:
-    """Main engine class that coordinates all subsystems"""
+    """Modern game engine with clean architecture and high performance"""
     
-    def __init__(self, width: int = 800, height: int = 600):
+    def __init__(self, width: int = 800, height: int = 600, title: str = "Axarion Game"):
+        # Core properties
         self.width = width
         self.height = height
+        self.title = title
         self.running = False
+        self.initialized = False
+        
+        # Timing and performance
         self.clock = pygame.time.Clock()
-        self.fps = 60
-        
-        # Initialize subsystems
-        self.renderer = None
-        self.physics = PhysicsSystem()
-        self.current_scene = None
-        self.scenes: Dict[str, Scene] = {}
-        
-        # Engine state
+        self.target_fps = 60
         self.delta_time = 0.0
         self.total_time = 0.0
         self.frame_count = 0
-        self.performance_stats = {"fps": 0, "frame_time": 0}
+        self.accumulated_time = 0.0
+        self.performance_stats = {
+            "fps": 0,
+            "frame_time": 0,
+            "objects_rendered": 0,
+            "physics_time": 0,
+            "render_time": 0
+        }
         
-        # Advanced features
-        self.global_variables = {}
-        self.event_system = {}
-        self.game_state = "running"  # running, paused, menu
+        # Engine subsystems (initialized in order)
+        self.renderer = None
+        self.physics = None
+        self.input_manager = None
+        self.audio_manager = None
+        self.asset_manager = None
+        
+        # Scene management
+        self.current_scene = None
+        self.scenes: Dict[str, Scene] = {}
+        self.scene_transition = None
+        
+        # Engine state and configuration
+        self.game_state = "running"  # running, paused, loading, menu
         self.debug_mode = False
-        self.collision_layers = {}
         self.time_scale = 1.0
+        self.vsync_enabled = True
+        self.auto_pause = True  # Pause when window loses focus
         
-        # Asset management
-        self.loaded_textures = {}
-        self.loaded_sounds = {}
-        self.loaded_fonts = {}
+        # Event and messaging system
+        self.event_dispatcher = {}
+        self.global_variables = {}
+        self.message_queue = []
         
-        # Game systems
-        self.game_systems = []
-        self.custom_updates = []
+        # System management
+        self.registered_systems = []
+        self.system_priorities = {}
         
-        # Web display for Replit
-        self.web_server = None
-        self.web_port = 5000
+        # Error handling and logging
+        self.error_log = []
+        self.warning_log = []
+        self.verbose_logging = False
         
-    def initialize(self, surface=None):
-        """Initialize the engine with optional surface"""
+    def initialize(self, surface=None, **config):
+        """Initialize the engine with comprehensive system setup"""
+        if self.initialized:
+            self._log_warning("Engine already initialized")
+            return True
+            
         try:
+            # Initialize pygame if needed
             if not pygame.get_init():
                 pygame.init()
+                pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=512)
+                pygame.mixer.init()
             
-            # Initialize renderer
-            self.renderer = Renderer(self.width, self.height, surface)
+            # Apply configuration
+            self._apply_config(config)
             
-            # Create default scene
-            default_scene = Scene("Default")
-            self.scenes["Default"] = default_scene
-            self.current_scene = default_scene
+            # Initialize core subsystems in correct order
+            success = (
+                self._init_renderer(surface) and
+                self._init_physics() and
+                self._init_input_system() and
+                self._init_audio_system() and
+                self._init_asset_manager()
+            )
             
-            print("Axarion Engine initialized successfully")
+            if not success:
+                raise RuntimeError("Failed to initialize one or more subsystems")
+            
+            # Set up default scene
+            self._create_default_scene()
+            
+            # Initialize performance monitoring
+            self._init_performance_monitoring()
+            
+            self.initialized = True
+            self._log_info(f"🎮 Axarion Engine v0.5 initialized successfully")
+            self._log_info(f"   Resolution: {self.width}x{self.height}")
+            self._log_info(f"   Target FPS: {self.target_fps}")
+            self._log_info(f"   VSync: {'Enabled' if self.vsync_enabled else 'Disabled'}")
+            
             return True
             
         except Exception as e:
-            print(f"Failed to initialize engine: {e}")
+            self._log_error(f"Failed to initialize engine: {e}")
+            self.cleanup()
             return False
     
+    def _apply_config(self, config):
+        """Apply configuration options"""
+        self.target_fps = config.get('fps', 60)
+        self.vsync_enabled = config.get('vsync', True)
+        self.debug_mode = config.get('debug', False)
+        self.verbose_logging = config.get('verbose', False)
+    
+    def _init_renderer(self, surface):
+        """Initialize rendering subsystem"""
+        try:
+            from .renderer import Renderer
+            self.renderer = Renderer(self.width, self.height, surface)
+            self.renderer.set_vsync(self.vsync_enabled)
+            return True
+        except Exception as e:
+            self._log_error(f"Failed to initialize renderer: {e}")
+            return False
+    
+    def _init_physics(self):
+        """Initialize physics subsystem"""
+        try:
+            self.physics = PhysicsSystem()
+            return True
+        except Exception as e:
+            self._log_error(f"Failed to initialize physics: {e}")
+            return False
+    
+    def _init_input_system(self):
+        """Initialize input management"""
+        try:
+            from .input_system import input_system
+            self.input_manager = input_system
+            return True
+        except Exception as e:
+            self._log_error(f"Failed to initialize input system: {e}")
+            return False
+    
+    def _init_audio_system(self):
+        """Initialize audio subsystem"""
+        try:
+            from .audio_system import audio_system
+            self.audio_manager = audio_system
+            # Audio system can work in disabled mode, so always return True
+            if not audio_system.audio_enabled:
+                self._log_warning("Audio system running in disabled mode")
+            return True
+        except Exception as e:
+            self._log_error(f"Failed to initialize audio system: {e}")
+            # Create a dummy audio manager to prevent crashes
+            self.audio_manager = None
+            return True  # Don't fail engine init due to audio issues
+    
+    def _init_asset_manager(self):
+        """Initialize asset management"""
+        try:
+            from .asset_manager import asset_manager
+            self.asset_manager = asset_manager
+            return True
+        except Exception as e:
+            self._log_error(f"Failed to initialize asset manager: {e}")
+            return False
+    
+    def _create_default_scene(self):
+        """Create and set default scene"""
+        default_scene = Scene("Default")
+        self.scenes["Default"] = default_scene
+        self.current_scene = default_scene
+    
+    def _init_performance_monitoring(self):
+        """Initialize performance monitoring"""
+        import time
+        self.performance_stats["start_time"] = time.time()
+        self.performance_stats["last_fps_update"] = time.time()
+    
     def update(self):
-        """Update engine state"""
-        if not self.running:
+        """High-performance engine update with proper timing"""
+        if not self.running or not self.initialized:
             return
-            
-        # Calculate delta time
-        self.delta_time = self.clock.tick(self.fps) / 1000.0
-        self.total_time += self.delta_time
         
-        # Handle pygame events
+        import time
+        frame_start = time.perf_counter()
+        
+        # Calculate delta time with time scale
+        raw_delta = self.clock.tick(self.target_fps) / 1000.0
+        self.delta_time = raw_delta * self.time_scale
+        self.total_time += raw_delta
+        self.frame_count += 1
+        
+        # Handle window events first
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.QUIT:
                 self.stop()
+            elif event.type == pygame.WINDOWFOCUSLOST and self.auto_pause:
+                self.pause_game()
+            elif event.type == pygame.WINDOWFOCUSGAINED and self.game_state == "paused":
+                self.resume_game()
+        
+        # Skip updates if paused
+        if self.game_state == "paused":
+            return
         
         # Update input system
-        input_system.update(events)
+        if self.input_manager:
+            self.input_manager.update(events)
+        
+        # Update registered systems in priority order
+        self._update_systems(self.delta_time)
         
         # Update current scene
-        if self.current_scene:
+        if self.current_scene and self.current_scene.active:
             self.current_scene.update(self.delta_time)
-            
-        # Update physics
-        self.physics.update(self.delta_time)
         
-        # Update animation system
-        animation_system.update(self.delta_time)
+        # Handle scene transitions
+        if self.scene_transition:
+            self._process_scene_transition()
         
-        # Update particle system
-        particle_system.update(self.delta_time)
+        # Process message queue
+        self._process_messages()
+        
+        # Update performance stats
+        frame_time = time.perf_counter() - frame_start
+        self._update_performance_stats(frame_time)
+    
+    def _update_systems(self, delta_time):
+        """Update all registered systems in priority order"""
+        # Update core systems
+        systems_to_update = [
+            ('physics', self.physics),
+            ('animation', None),  # Will be handled via import
+            ('particles', None),  # Will be handled via import
+            ('audio', self.audio_manager)
+        ]
+        
+        for system_name, system in systems_to_update:
+            if system and hasattr(system, 'update'):
+                try:
+                    physics_start = time.perf_counter() if system_name == 'physics' else None
+                    system.update(delta_time)
+                    if physics_start:
+                        self.performance_stats['physics_time'] = time.perf_counter() - physics_start
+                except Exception as e:
+                    self._log_error(f"Error updating {system_name} system: {e}")
+            elif system_name == 'audio' and system is None:
+                # Audio system disabled, skip silently
+                pass
+        
+        # Update external systems
+        try:
+            from .animation_system import animation_system
+            from .particle_system import particle_system
+            animation_system.update(delta_time)
+            particle_system.update(delta_time)
+        except ImportError:
+            pass  # Systems not available
+        
+        # Update custom registered systems
+        for system in self.registered_systems:
+            try:
+                if hasattr(system, 'update'):
+                    system.update(delta_time)
+            except Exception as e:
+                self._log_error(f"Error updating custom system: {e}")
+    
+    def _process_messages(self):
+        """Process queued messages"""
+        while self.message_queue:
+            message = self.message_queue.pop(0)
+            self._dispatch_message(message)
+    
+    def _dispatch_message(self, message):
+        """Dispatch message to registered handlers"""
+        msg_type = message.get('type')
+        if msg_type in self.event_dispatcher:
+            for handler in self.event_dispatcher[msg_type]:
+                try:
+                    handler(message)
+                except Exception as e:
+                    self._log_error(f"Error in message handler: {e}")
+    
+    def _update_performance_stats(self, frame_time):
+        """Update performance statistics"""
+        import time
+        current_time = time.time()
+        
+        self.performance_stats['frame_time'] = frame_time * 1000  # Convert to ms
+        
+        # Update FPS every second
+        if current_time - self.performance_stats.get('last_fps_update', 0) >= 1.0:
+            self.performance_stats['fps'] = self.frame_count / (current_time - self.performance_stats.get('start_time', current_time))
+            self.performance_stats['last_fps_update'] = current_time
     
     def render(self):
-        """Render the current frame"""
+        """High-performance rendering with monitoring"""
+        if not self.renderer or not self.initialized:
+            return
+        
+        import time
+        render_start = time.perf_counter()
+        
+        try:
+            # Clear screen
+            self.renderer.clear()
+            
+            # Render current scene
+            objects_rendered = 0
+            if self.current_scene and self.current_scene.active:
+                objects_rendered = self.current_scene.render(self.renderer)
+            
+            # Render particle effects
+            try:
+                from .particle_system import particle_system
+                particle_system.render(self.renderer)
+            except ImportError:
+                pass
+            
+            # Render debug information if enabled
+            if self.debug_mode:
+                self._render_debug_info()
+            
+            # Present frame
+            self.renderer.present()
+            
+            # Update render stats
+            self.performance_stats['render_time'] = (time.perf_counter() - render_start) * 1000
+            self.performance_stats['objects_rendered'] = objects_rendered
+            
+        except Exception as e:
+            self._log_error(f"Render error: {e}")
+    
+    def _render_debug_info(self):
+        """Render debug information overlay"""
         if not self.renderer:
             return
-            
-        self.renderer.clear()
         
-        if self.current_scene:
-            self.current_scene.render(self.renderer)
-            
-        # Render particle effects
-        particle_system.render(self.renderer)
-            
-        self.renderer.present()
+        debug_info = [
+            f"FPS: {self.performance_stats.get('fps', 0):.1f}",
+            f"Frame: {self.performance_stats.get('frame_time', 0):.2f}ms",
+            f"Render: {self.performance_stats.get('render_time', 0):.2f}ms",
+            f"Physics: {self.performance_stats.get('physics_time', 0)*1000:.2f}ms",
+            f"Objects: {self.performance_stats.get('objects_rendered', 0)}",
+            f"Scene: {self.current_scene.name if self.current_scene else 'None'}",
+            f"Time Scale: {self.time_scale:.2f}"
+        ]
+        
+        y_offset = 10
+        for info in debug_info:
+            self.renderer.draw_text(info, 10, y_offset, (255, 255, 0))
+            y_offset += 18
     
     def run_frame(self):
         """Run a single frame of the engine"""
@@ -135,124 +381,10 @@ class AxarionEngine:
         """Run the main game loop"""
         self.start()
         
-        # Web server disabled for desktop mode
-        # self.start_web_server()
-        
         while self.running:
             self.run_frame()
         
         self.cleanup()
-    
-    def start_web_server(self):
-        """Start web server to display game in browser"""
-        import threading
-        import http.server
-        import socketserver
-        
-        class GameHandler(http.server.SimpleHTTPRequestHandler):
-            def do_GET(self):
-                if self.path == '/':
-                    self.send_response(200)
-                    self.send_header('Content-type', 'text/html')
-                    self.end_headers()
-                    
-                    html = """
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <title>🎮 Axarion Game</title>
-                        <style>
-                            body { 
-                                margin: 0; 
-                                padding: 20px; 
-                                background: #2b2b2b; 
-                                color: white; 
-                                font-family: Arial, sans-serif;
-                                text-align: center;
-                            }
-                            #gameCanvas { 
-                                border: 2px solid #4CAF50; 
-                                background: #000;
-                                margin: 20px auto;
-                                display: block;
-                            }
-                            .info {
-                                margin: 20px;
-                                padding: 10px;
-                                background: #3c3c3c;
-                                border-radius: 5px;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <h1>🎮 Axarion Game Engine</h1>
-                        <div class="info">
-                            <p>✨ Your game is running!</p>
-                            <p>🎯 Use arrow keys to move, spacebar for actions</p>
-                        </div>
-                        <canvas id="gameCanvas" width="800" height="600"></canvas>
-                        
-                        <script>
-                            const canvas = document.getElementById('gameCanvas');
-                            const ctx = canvas.getContext('2d');
-                            
-                            // Simple demo animation
-                            let x = 400, y = 300;
-                            let dx = 2, dy = 1;
-                            
-                            function animate() {
-                                ctx.fillStyle = '#000';
-                                ctx.fillRect(0, 0, 800, 600);
-                                
-                                // Draw bouncing ball
-                                ctx.fillStyle = '#4CAF50';
-                                ctx.beginPath();
-                                ctx.arc(x, y, 20, 0, Math.PI * 2);
-                                ctx.fill();
-                                
-                                // Update position
-                                x += dx;
-                                y += dy;
-                                
-                                if (x <= 20 || x >= 780) dx = -dx;
-                                if (y <= 20 || y >= 580) dy = -dy;
-                                
-                                // Game info
-                                ctx.fillStyle = '#fff';
-                                ctx.font = '16px Arial';
-                                ctx.fillText('🎮 Axarion Engine Demo', 10, 30);
-                                ctx.fillText('Game running successfully!', 10, 55);
-                                
-                                requestAnimationFrame(animate);
-                            }
-                            
-                            animate();
-                            
-                            // Keyboard controls
-                            document.addEventListener('keydown', (e) => {
-                                console.log('Key pressed:', e.key);
-                            });
-                        </script>
-                    </body>
-                    </html>
-                    """
-                    self.wfile.write(html.encode())
-                else:
-                    super().do_GET()
-        
-        try:
-            with socketserver.TCPServer(("0.0.0.0", self.web_port), GameHandler) as httpd:
-                print(f"🌐 Game server running at http://0.0.0.0:{self.web_port}")
-                
-                def serve():
-                    httpd.serve_forever()
-                
-                server_thread = threading.Thread(target=serve, daemon=True)
-                server_thread.start()
-                self.web_server = httpd
-                
-        except Exception as e:
-            print(f"Failed to start web server: {e}")
     
     def start(self):
         """Start the engine main loop"""
@@ -399,20 +531,123 @@ class AxarionEngine:
         return results
     
     def cleanup(self):
-        """Clean up engine resources"""
+        """Comprehensive cleanup of all engine resources"""
+        self._log_info("🧹 Cleaning up engine resources...")
+        
+        try:
+            # Stop any running processes
+            self.running = False
+            
+            # Cleanup subsystems in reverse order
+            subsystems = [
+                ('asset_manager', self.asset_manager),
+                ('audio_manager', self.audio_manager),
+                ('renderer', self.renderer),
+                ('physics', self.physics)
+            ]
+            
+            for name, system in subsystems:
+                if system and hasattr(system, 'cleanup'):
+                    try:
+                        system.cleanup()
+                        self._log_info(f"   ✓ {name} cleaned up")
+                    except Exception as e:
+                        self._log_error(f"   ✗ Failed to cleanup {name}: {e}")
+            
+            # Clear external systems
+            try:
+                from .audio_system import audio_system
+                from .animation_system import animation_system
+                from .particle_system import particle_system
+                
+                audio_system.cleanup()
+                animation_system.clear()
+                particle_system.clear()
+                self._log_info("   ✓ External systems cleaned up")
+            except Exception as e:
+                self._log_error(f"   ✗ Failed to cleanup external systems: {e}")
+            
+            # Clear scene data
+            for scene in self.scenes.values():
+                if hasattr(scene, 'cleanup'):
+                    scene.cleanup()
+            self.scenes.clear()
+            self.current_scene = None
+            
+            # Clear engine state
+            self.global_variables.clear()
+            self.event_dispatcher.clear()
+            self.message_queue.clear()
+            self.registered_systems.clear()
+            
+            # Cleanup pygame
+            if pygame.get_init():
+                pygame.quit()
+                self._log_info("   ✓ Pygame cleaned up")
+            
+            self.initialized = False
+            self._log_info("✅ Engine cleanup completed successfully")
+            
+        except Exception as e:
+            print(f"❌ Error during cleanup: {e}")
+    
+    def _log_info(self, message):
+        """Log info message"""
+        if self.verbose_logging:
+            print(f"[INFO] {message}")
+    
+    def _log_warning(self, message):
+        """Log warning message"""
+        print(f"[WARNING] {message}")
+        self.warning_log.append(message)
+    
+    def _log_error(self, message):
+        """Log error message"""
+        print(f"[ERROR] {message}")
+        self.error_log.append(message)
+    
+    # Additional engine management methods
+    def register_system(self, system, priority=0):
+        """Register a custom system with the engine"""
+        self.registered_systems.append(system)
+        self.system_priorities[system] = priority
+        self.registered_systems.sort(key=lambda s: self.system_priorities.get(s, 0))
+    
+    def unregister_system(self, system):
+        """Unregister a custom system"""
+        if system in self.registered_systems:
+            self.registered_systems.remove(system)
+            if system in self.system_priorities:
+                del self.system_priorities[system]
+    
+    def post_message(self, message_type, data=None):
+        """Post a message to the message queue"""
+        message = {'type': message_type, 'data': data, 'timestamp': self.total_time}
+        self.message_queue.append(message)
+    
+    def subscribe_to_messages(self, message_type, handler):
+        """Subscribe to messages of a specific type"""
+        if message_type not in self.event_dispatcher:
+            self.event_dispatcher[message_type] = []
+        self.event_dispatcher[message_type].append(handler)
+    
+    def unsubscribe_from_messages(self, message_type, handler):
+        """Unsubscribe from messages"""
+        if message_type in self.event_dispatcher:
+            if handler in self.event_dispatcher[message_type]:
+                self.event_dispatcher[message_type].remove(handler)
+    
+    def get_performance_info(self):
+        """Get detailed performance information"""
+        return self.performance_stats.copy()
+    
+    def set_target_fps(self, fps):
+        """Set target FPS"""
+        self.target_fps = max(1, min(fps, 240))  # Clamp between 1-240
+    
+    def toggle_debug_mode(self):
+        """Toggle debug mode"""
+        self.debug_mode = not self.debug_mode
         if self.renderer:
-            self.renderer.cleanup()
-        
-        # Cleanup audio system
-        audio_system.cleanup()
-        
-        # Clear animation and particle systems
-        animation_system.clear()
-        particle_system.clear()
-        
-        # Clear caches
-        self.loaded_textures.clear()
-        self.loaded_sounds.clear()
-        self.loaded_fonts.clear()
-        
-        pygame.quit()
+            self.renderer.debug_mode = self.debug_mode
+        return self.debug_mode

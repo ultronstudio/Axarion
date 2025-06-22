@@ -166,9 +166,9 @@ class Scene:
                        if not obj.destroyed}
 
     def render(self, renderer):
-        """Render scene and all objects"""
+        """Render scene and all objects, return count of rendered objects"""
         if not self.active:
-            return
+            return 0
 
         # Set background color
         renderer.set_background_color(self.background_color)
@@ -176,17 +176,17 @@ class Scene:
         # Get camera position for culling
         camera_x, camera_y = renderer.get_camera()
 
-        # Render objects
+        # Render objects with optimized culling
         rendered_count = 0
-        for obj in self.objects.values():
-            if not obj.visible or obj.destroyed:
-                continue
-
+        visible_objects = [obj for obj in self.objects.values() 
+                          if obj.visible and not obj.destroyed]
+        
+        for obj in visible_objects:
             # Cull objects outside render distance (optimization)
             if self.cull_objects:
                 obj_x, obj_y = obj.position
-                distance = ((obj_x - camera_x) ** 2 + (obj_y - camera_y) ** 2) ** 0.5
-                if distance > self.render_distance:
+                distance_sq = (obj_x - camera_x) ** 2 + (obj_y - camera_y) ** 2
+                if distance_sq > self.render_distance * self.render_distance:
                     continue
 
                 # Also check if object is roughly on screen
@@ -200,6 +200,8 @@ class Scene:
         # Draw scene debug info if needed
         if renderer.debug_mode:
             self._render_debug_info(renderer)
+        
+        return rendered_count
 
     def _render_debug_info(self, renderer):
         """Render debug information"""

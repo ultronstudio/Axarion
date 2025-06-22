@@ -14,13 +14,19 @@ class AudioSystem:
     
     def __init__(self):
         try:
+            # Try to initialize audio with fallback options
             pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=512)
             pygame.mixer.init()
             self.audio_enabled = True
             print("Audio system initialized successfully")
-        except pygame.error as e:
+        except (pygame.error, OSError) as e:
             print(f"Audio system disabled: {e}")
             self.audio_enabled = False
+            # Ensure pygame mixer is properly cleaned up
+            try:
+                pygame.mixer.quit()
+            except:
+                pass
         
         self.sounds: Dict[str, pygame.mixer.Sound] = {}
         self.music_volume = 0.7
@@ -108,9 +114,17 @@ class AudioSystem:
         for sound in self.sounds.values():
             sound.set_volume(self.sfx_volume)
     
+    def update(self, delta_time):
+        """Update audio system - required for engine compatibility"""
+        pass  # Audio system doesn't need per-frame updates
+    
     def cleanup(self):
         """Clean up audio resources"""
-        pygame.mixer.quit()
+        if self.audio_enabled:
+            try:
+                pygame.mixer.quit()
+            except:
+                pass
 
 # Global audio system instance
 audio_system = AudioSystem()

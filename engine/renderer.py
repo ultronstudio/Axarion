@@ -354,6 +354,12 @@ class Renderer:
         """Show velocity vectors"""
         self.show_velocity = enabled
     
+    def set_vsync(self, enabled: bool):
+        """Set VSync (currently not implemented in pygame)"""
+        # Note: pygame doesn't have direct VSync control
+        # This is a placeholder for engine compatibility
+        pass
+    
     def cleanup(self):
         """Clean up renderer resources"""
         pass
