@@ -283,7 +283,7 @@ class AxarionEngine:
         """Save the current project to file"""
         try:
             project_data = {
-                "engine_version": "1.0",
+                "engine_version": "0.4",
                 "scenes": {}
             }
             
