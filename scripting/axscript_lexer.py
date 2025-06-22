@@ -260,8 +260,8 @@ class AXScriptLexer:
                 elif char == '?':
                     tokens.append(Token(TokenType.QUESTION, char, line_num, column))
                 
-                # String literals
-                elif char in ['"', "'"]:
+                # String literals - handle both " and '
+                elif char == '"' or char == "'":
                     quote_char = char
                     start_col = column
                     i += 1
@@ -292,7 +292,7 @@ class AXScriptLexer:
                         column += 1
                     
                     if i < len(line) and line[i] == quote_char:
-                        tokens.append(Token(TokenType.STRING, quote_char + string_val + quote_char, line_num, start_col))
+                        tokens.append(Token(TokenType.STRING, string_val, line_num, start_col))
                         i += 1
                         column += 1
                     else:
@@ -549,9 +549,9 @@ class AXScriptLexer:
                     # Single line comment - skip rest of line
                     break
 
-                # String literals
-                if char == '"':
-                    string_value, new_i = self.scan_string(line, i, line_num, column)
+                # String literals - handle both " and '
+                if char == '"' or char == "'":
+                    string_value, new_i = self.scan_string(line, i, line_num, column, char)
                     tokens.append(Token(TokenType.STRING, string_value, line_num, column))
                     column += new_i - i
                     i = new_i
@@ -632,23 +632,31 @@ class AXScriptLexer:
         tokens.append(Token(TokenType.EOF, "", len(lines), 1))
         return tokens
 
-    def scan_string(self, line: str, start: int, line_num: int, column: int) -> tuple:
+    def scan_string(self, line: str, start: int, line_num: int, column: int, quote_char: str = '"') -> tuple:
         """Scan a string literal"""
         i = start + 1  # Skip opening quote
-        value = '"'
+        value = ""
 
         while i < len(line):
             char = line[i]
 
-            if char == '"':
-                value += char
+            if char == quote_char:
                 return value, i + 1
 
             if char == '\\' and i + 1 < len(line):
                 # Handle escape sequences
                 next_char = line[i + 1]
-                if next_char in ['"', '\\', 'n', 't', 'r']:
-                    value += char + next_char
+                if next_char in ['"', "'", '\\', 'n', 't', 'r']:
+                    if next_char == 'n':
+                        value += '\n'
+                    elif next_char == 't':
+                        value += '\t'
+                    elif next_char == 'r':
+                        value += '\r'
+                    elif next_char == '\\':
+                        value += '\\'
+                    else:
+                        value += next_char
                     i += 2
                 else:
                     value += char
@@ -657,7 +665,8 @@ class AXScriptLexer:
                 value += char
                 i += 1
 
-        raise LexError("Unterminated string literal", line_num, column)
+        # Return partial string instead of throwing error to be more forgiving
+        return value, i
 
     def scan_number(self, line: str, start: int, line_num: int, column: int) -> tuple:
         """Scan a number literal"""

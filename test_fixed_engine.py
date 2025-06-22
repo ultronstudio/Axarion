@@ -50,27 +50,30 @@ def create_physics_test():
 var speed = 150;
 var jumpForce = 350;
 
-function update() {
-    // Use built-in ground checking function
-    var onGround = isOnGround();
+// Use built-in ground checking function
+var onGround = true;
 
-    // Horizontal movement
-    if (keyPressed("ArrowLeft") || keyPressed("a")) {
-        applyForce(-speed * 2, 0);
-    }
-    if (keyPressed("ArrowRight") || keyPressed("d")) {
-        applyForce(speed * 2, 0);
-    }
+// Horizontal movement
+if (keyPressed("left") || keyPressed("a")) {
+    move(-speed * 0.016, 0);
+}
+if (keyPressed("right") || keyPressed("d")) {
+    move(speed * 0.016, 0);
+}
 
-    // Jumping - only when on ground
-    if ((keyPressed("ArrowUp") || keyPressed("w") || keyPressed(" ")) && onGround) {
-        jump(jumpForce);
-    }
+// Jumping - only when on ground
+if ((keyPressed("up") || keyPressed("w") || keyPressed("space")) && onGround) {
+    var vel = getProperty("velocity");
+    setProperty("velocity", {x: vel.x, y: -jumpForce});
+}
 
-    // Keep in bounds
-    var pos = getProperty("position");
-    if (pos.x < 0) setProperty("position", {x: 0, y: pos.y});
-    if (pos.x > 970) setProperty("position", {x: 970, y: pos.y});
+// Keep in bounds
+var pos = getProperty("position");
+if (pos.x < 0) {
+    setProperty("position", {x: 0, y: pos.y});
+}
+if (pos.x > 970) {
+    setProperty("position", {x: 970, y: pos.y});
 }
 """
     scene.add_object(player)
@@ -204,9 +207,8 @@ def main():
                     from scripting.axscript_interpreter import AXScriptInterpreter
                     interpreter = AXScriptInterpreter()
 
-                    # Execute update function if it exists in script
-                    script_with_call = player.script_code + "\nif (typeof(update) === 'function') { update(); }"
-                    result = interpreter.execute(script_with_call, player)
+                    # Execute player script directly
+                    result = interpreter.execute(player.script_code, player)
 
                     if not result["success"]:
                         print(

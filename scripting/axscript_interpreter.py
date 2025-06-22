@@ -312,6 +312,11 @@ class AXScriptInterpreter:
         self.global_env.define_function("getMousePos", self.builtin_get_mouse_pos)
         self.global_env.define_function("getAxis", self.builtin_get_axis)
         self.global_env.define_function("getMovement", self.builtin_get_movement)
+        
+        # Physics and movement functions  
+        self.global_env.define_function("jump", self.builtin_jump)
+        self.global_env.define_function("isOnGround", self.builtin_is_on_ground)
+        self.global_env.define_function("applyForce", self.builtin_apply_force_simple)
 
         # Game utility functions
         self.global_env.define_function("distance", self.builtin_distance)
@@ -1089,7 +1094,15 @@ class AXScriptInterpreter:
             raise RuntimeError("getProperty() can only be called in object context")
 
         if name == "position":
-            return {"x": self.context_object.position[0], "y": self.context_object.position[1]}
+            pos = self.context_object.position
+            if pos is None:
+                return {"x": 0, "y": 0}
+            return {"x": pos[0], "y": pos[1]}
+        elif name == "velocity":
+            vel = self.context_object.velocity
+            if vel is None:
+                return {"x": 0, "y": 0}
+            return {"x": vel[0], "y": vel[1]}
         elif name == "name":
             return self.context_object.name
         elif name == "visible":
@@ -1099,7 +1112,8 @@ class AXScriptInterpreter:
         elif name == "type":
             return self.context_object.object_type
         else:
-            return self.context_object.get_property(name)
+            result = self.context_object.get_property(name)
+            return result if result is not None else 0
 
     # Math functions
     def builtin_sin(self, x: float) -> float:
@@ -1614,10 +1628,10 @@ class AXScriptInterpreter:
         if not self.context_object or not self.context_object.scene:
             return False
 
-        # Simple ground check - could be improved
-        bounds = self.context_object.get_bounds()
-        ground_y = 450  # Hardcoded for now
-        return abs(bounds[3] - ground_y) < 5
+        # Use the proper ground detection from GameObject
+        platforms = [obj for obj in self.context_object.scene.objects.values() 
+                    if obj != self.context_object and (obj.has_tag("platform") or obj.is_static)]
+        return self.context_object.is_on_ground(platforms)
 
     def builtin_set_gravity(self, gravity: float) -> None:
         """Set gravity scale"""
@@ -1661,6 +1675,11 @@ class AXScriptInterpreter:
         if self.context_object:
             vel_x, vel_y = self.context_object.velocity
             self.context_object.velocity = (vel_x + force_x * 0.016, vel_y + force_y * 0.016)
+    
+    def builtin_apply_force_simple(self, force_x: float, force_y: float) -> None:
+        """Simple force application for basic movement"""
+        if self.context_object:
+            self.context_object.apply_force(force_x, force_y)
 
     def builtin_set_brake(self, brake_force: float) -> None:
         """Apply brakes (racing)"""
