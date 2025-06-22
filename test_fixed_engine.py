@@ -45,37 +45,42 @@ def create_physics_test():
     player.friction = 0.8
     player.add_tag("player")
 
-    # Player script with AXScript movement
+    # Player script with simplified movement and debugging
     player.script_code = """
-var speed = 8;
-var jumpForce = 350;
-
-// Horizontal movement
-if (keyPressed("left") || keyPressed("a")) {
-    move(-speed, 0);
-}
-if (keyPressed("right") || keyPressed("d")) {
-    move(speed, 0);
+// Check all movement keys
+if (keyPressed("a") || keyPressed("left")) {
+    print("LEFT movement detected!");
+    applyForce(-300, 0);
 }
 
-// Jumping - only when on ground
-if (keyPressed("up") || keyPressed("w") || keyPressed("space")) {
+if (keyPressed("d") || keyPressed("right")) {
+    print("RIGHT movement detected!");
+    applyForce(300, 0);
+}
+
+if (keyPressed("w") || keyPressed("up")) {
+    print("UP key detected!");
     if (isOnGround()) {
-        var vel = getProperty("velocity");
-        setProperty("velocity", {x: vel.x, y: -jumpForce});
+        print("Jumping!");
+        applyForce(0, -500);
     }
 }
 
-// Keep player in bounds
-var pos = getProperty("position");
-if (pos.x < 0) {
-    setProperty("position", {x: 0, y: pos.y});
-}
-if (pos.x > 970) {
-    setProperty("position", {x: 970, y: pos.y});
+if (keyPressed("space")) {
+    print("SPACE detected!");
+    if (isOnGround()) {
+        print("Space jump!");
+        applyForce(0, -500);
+    }
 }
 """
     scene.add_object(player)
+    
+    # Add scene reference to player for AXScript
+    player.scene = scene
+    
+    # Enable AXScript mode by default
+    player.use_axscript = True
 
     # Create ground platforms
     platforms = [
@@ -200,28 +205,56 @@ def main():
                         print(
                             f"Debug mode: {'ON' if engine.renderer.debug_mode else 'OFF'}"
                         )
+                    elif event.key == pygame.K_x:
+                        # Toggle between basic controls and AXScript
+                        player = engine.current_scene.get_object("Player")
+                        if player:
+                            use_axscript = getattr(player, 'use_axscript', False)
+                            player.use_axscript = not use_axscript
+                            mode = "AXScript" if player.use_axscript else "Basic"
+                            print(f"Control mode: {mode}")
 
-            # Execute AXScript for player movement
+            # Handle player movement - toggle between basic and AXScript
             player = engine.current_scene.get_object("Player")
-            if player and hasattr(player, 'script_code') and player.script_code:
-                try:
-                    # Execute player script with AXScript interpreter
-                    from scripting.axscript_interpreter import AXScriptInterpreter
-                    interpreter = AXScriptInterpreter()
+            if player:
+                # Check if we should use AXScript (press X to toggle)
+                use_axscript = getattr(player, 'use_axscript', True)  # Default to True
+                
+                if use_axscript and hasattr(player, 'script_code') and player.script_code:
+                    # Use AXScript for movement
+                    try:
+                        from scripting.axscript_interpreter import AXScriptInterpreter
+                        interpreter = AXScriptInterpreter()
+                        result = interpreter.execute(player.script_code, player)
 
-                    # Execute player script
-                    result = interpreter.execute(player.script_code, player)
+                        if not result["success"]:
+                            print(f"❌ AXScript error: {result['error']}")
+                            if result.get('output'):
+                                print(f"🔍 AXScript debug: {result['output']}")
+                        else:
+                            # Only show output if there's actual output (not just successful execution)
+                            if result.get('output') and result['output'].strip():
+                                print(f"🟢 AXScript: {result['output']}")
 
-                    if not result["success"]:
-                        print(f"AXScript error: {result['error']}")
-                        # Fallback to basic movement if script fails
-                        if input_system.is_key_pressed("left"):
-                            player.apply_force(-200, 0)
-                        if input_system.is_key_pressed("right"):
-                            player.apply_force(200, 0)
+                    except Exception as e:
+                        print(f"❌ AXScript execution error: {e}")
 
-                except Exception as e:
-                    print(f"AXScript execution error: {e}")
+                else:
+                    # Use basic direct controls
+                    if input_system.is_key_pressed("left") or input_system.is_key_pressed("a"):
+                        player.apply_force(-300, 0)
+                        print("🎮 Basic: LEFT")
+                    if input_system.is_key_pressed("right") or input_system.is_key_pressed("d"):
+                        player.apply_force(300, 0)
+                        print("🎮 Basic: RIGHT")
+                    if (input_system.is_key_pressed("up") or input_system.is_key_pressed("w") or 
+                        input_system.is_key_pressed("space")):
+                        # Jump only if on ground
+                        platforms = [obj for obj in engine.current_scene.objects.values() 
+                                   if obj.has_tag("platform") or obj.is_static]
+                        if player.is_on_ground(platforms):
+                            player.velocity = (player.velocity[0], -400)
+                            print("🎮 Basic: JUMP")
 
             # Update engine with error handling
             try:
@@ -241,10 +274,10 @@ def main():
             engine.renderer.draw_text("Axarion Engine - Physics Test", 10, 10,
                                       (255, 255, 255))
             engine.renderer.draw_text(
-                "WASD/Arrows: Move | Space: Jump | D: Debug | ESC: Exit", 10,
+                "WASD/Arrows: Move | Space: Jump | D: Debug | X: Toggle Controls | ESC: Exit", 10,
                 30, (200, 200, 200))
 
-            # Show physics info
+            # Show physics and input info
             if player:
                 vel = player.velocity
                 on_ground = player.is_on_ground([
@@ -256,6 +289,23 @@ def main():
                     (150, 200, 255))
                 engine.renderer.draw_text(f"On Ground: {on_ground}", 10, 70,
                                           (150, 200, 255))
+                
+                # Debug input state
+                input_debug = f"Keys: "
+                if input_system.is_key_pressed("left") or input_system.is_key_pressed("a"):
+                    input_debug += "LEFT "
+                if input_system.is_key_pressed("right") or input_system.is_key_pressed("d"):
+                    input_debug += "RIGHT "
+                if input_system.is_key_pressed("up") or input_system.is_key_pressed("w"):
+                    input_debug += "UP "
+                if input_system.is_key_pressed("space"):
+                    input_debug += "SPACE "
+                engine.renderer.draw_text(input_debug, 10, 90, (255, 255, 100))
+                
+                # Show control mode
+                use_axscript = getattr(player, 'use_axscript', False)
+                control_mode = "AXScript" if use_axscript else "Basic"
+                engine.renderer.draw_text(f"Control Mode: {control_mode}", 10, 110, (100, 255, 100))
 
             engine.renderer.present()
 

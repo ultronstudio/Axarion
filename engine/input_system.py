@@ -210,10 +210,10 @@ class InputSystem:
 
     def is_key_down(self, key_name: str) -> bool:
         """Check if key is currently pressed"""
-        key_code = self._get_key_code(key_name)
+        key_code = self.key_mappings.get(key_name.lower())
         if key_code is None:
             return False
-        return self.pressed_keys.get(key_code, False)
+        return key_code in self.keys_pressed
 
     def is_key_pressed(self, key_name: str) -> bool:
         """Alias for is_key_down for AXScript compatibility"""
