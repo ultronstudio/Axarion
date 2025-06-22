@@ -1,0 +1,139 @@
+{
+  "name": "Sample Project",
+  "version": "1.0",
+  "engine_version": "1.0",
+  "created": "2025-06-20",
+  "modified": "2025-06-20",
+  "settings": {
+    "resolution": [800, 600],
+    "fullscreen": false,
+    "vsync": true,
+    "physics_enabled": true,
+    "gravity": [0, 981]
+  },
+  "scenes": {
+    "Main": {
+      "name": "Main",
+      "background_color": [30, 30, 50],
+      "camera_x": 0,
+      "camera_y": 0,
+      "properties": {},
+      "objects": {
+        "object_1": {
+          "name": "Player",
+          "object_type": "rectangle",
+          "position": [100, 200],
+          "rotation": 0,
+          "scale": [1, 1],
+          "velocity": [0, 0],
+          "acceleration": [0, 0],
+          "mass": 1,
+          "friction": 0,
+          "active": true,
+          "visible": true,
+          "properties": {
+            "width": 40,
+            "height": 60,
+            "color": [100, 150, 255]
+          },
+          "script_code": "// Player movement script\nvar speed = 200;\n\nfunction update() {\n    // Simple bouncing movement\n    var x = this.position.x;\n    var y = this.position.y;\n    \n    if (x > 750 || x < 50) {\n        speed = -speed;\n    }\n    \n    move(speed * 0.016, 0); // 60 FPS delta time approximation\n}",
+          "script_variables": {}
+        },
+        "object_2": {
+          "name": "Enemy",
+          "object_type": "circle",
+          "position": [400, 300],
+          "rotation": 0,
+          "scale": [1, 1],
+          "velocity": [0, 0],
+          "acceleration": [0, 0],
+          "mass": 1,
+          "friction": 0,
+          "active": true,
+          "visible": true,
+          "properties": {
+            "radius": 25,
+            "color": [255, 100, 100]
+          },
+          "script_code": "// Enemy AI script\nvar angle = 0;\nvar centerX = 400;\nvar centerY = 300;\nvar radius = 100;\n\nfunction update() {\n    angle += 0.05;\n    \n    var newX = centerX + cos(angle) * radius;\n    var newY = centerY + sin(angle) * radius;\n    \n    setProperty(\"position\", {x: newX, y: newY});\n}",
+          "script_variables": {}
+        },
+        "object_3": {
+          "name": "Platform",
+          "object_type": "rectangle",
+          "position": [300, 500],
+          "rotation": 0,
+          "scale": [1, 1],
+          "velocity": [0, 0],
+          "acceleration": [0, 0],
+          "mass": 10,
+          "friction": 0,
+          "active": true,
+          "visible": true,
+          "properties": {
+            "width": 200,
+            "height": 20,
+            "color": [150, 150, 150]
+          },
+          "script_code": "// Static platform - no script needed",
+          "script_variables": {}
+        }
+      },
+      "object_order": ["object_3", "object_1", "object_2"]
+    },
+    "Menu": {
+      "name": "Menu",
+      "background_color": [20, 20, 30],
+      "camera_x": 0,
+      "camera_y": 0,
+      "properties": {},
+      "objects": {
+        "object_1": {
+          "name": "Title",
+          "object_type": "rectangle",
+          "position": [300, 200],
+          "rotation": 0,
+          "scale": [1, 1],
+          "velocity": [0, 0],
+          "acceleration": [0, 0],
+          "mass": 1,
+          "friction": 0,
+          "active": true,
+          "visible": true,
+          "properties": {
+            "width": 200,
+            "height": 50,
+            "color": [255, 255, 255]
+          },
+          "script_code": "// Title screen element",
+          "script_variables": {}
+        }
+      },
+      "object_order": ["object_1"]
+    }
+  },
+  "assets": [
+    {
+      "name": "player_sprite",
+      "type": "image",
+      "path": "assets/images/player.png",
+      "properties": {
+        "width": 40,
+        "height": 60
+      }
+    },
+    {
+      "name": "background_music",
+      "type": "audio",
+      "path": "assets/audio/bgm.ogg",
+      "properties": {
+        "loop": true,
+        "volume": 0.7
+      }
+    }
+  ],
+  "scripts": {
+    "main": "// Main game script\nvar gameStarted = false;\nvar score = 0;\n\nfunction init() {\n    print(\"Game initialized!\");\n    gameStarted = true;\n}\n\nfunction gameLoop() {\n    if (!gameStarted) {\n        return;\n    }\n    \n    // Game logic here\n    score += 1;\n    \n    if (score > 1000) {\n        print(\"High score reached!\");\n    }\n}\n\n// Initialize the game\ninit();",
+    "utils": "// Utility functions\nfunction distance(x1, y1, x2, y2) {\n    var dx = x2 - x1;\n    var dy = y2 - y1;\n    return sqrt(dx * dx + dy * dy);\n}\n\nfunction clamp(value, minVal, maxVal) {\n    return max(minVal, min(maxVal, value));\n}\n\nfunction lerp(a, b, t) {\n    return a + (b - a) * t;\n}"
+  }
+}
