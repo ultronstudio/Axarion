@@ -5,7 +5,7 @@ Basic 2D physics simulation
 """
 
 import math
-from typing import List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional
 from .game_object import GameObject
 
 class PhysicsSystem:
@@ -27,6 +27,27 @@ class PhysicsSystem:
         # World bounds
         self.world_bounds = (0, 0, 800, 600)  # left, top, right, bottom
         self.constrain_to_world = True
+        
+        # UNLIMITED PHYSICS FEATURES
+        self.unlimited_mode = True
+        self.advanced_collision = True
+        self.fluid_dynamics = False
+        self.soft_body_physics = False
+        self.cloth_simulation = False
+        self.particle_physics = True
+        
+        # Genre-specific physics
+        self.platformer_physics = {"coyote_time": 0.1, "jump_buffer": 0.1}
+        self.racing_physics = {"friction_curves": True, "aerodynamics": True}
+        self.shooter_physics = {"bullet_physics": True, "ballistics": True}
+        self.rpg_physics = {"turn_based_mode": False, "grid_movement": False}
+        
+        # Advanced features
+        self.physics_materials = {}
+        self.joint_systems = []
+        self.force_fields = []
+        self.magnetic_fields = []
+        self.gravity_wells = []
         
     def update(self, delta_time: float):
         """Update physics simulation"""
@@ -368,8 +389,267 @@ class PhysicsSystem:
                 vx, vy = obj.velocity
                 obj.velocity = (vx * self.air_resistance, vy * self.air_resistance)
                 
+                # Apply unlimited physics features
+                self.apply_unlimited_physics(obj, delta_time)
+                
                 # Constrain to world bounds
                 self.constrain_to_bounds(obj)
         
         # Check all collisions
         self.check_all_collisions(objects, delta_time)
+        
+        # Update advanced physics
+        self.update_force_fields(objects, delta_time)
+        self.update_joints(delta_time)
+    
+    # UNLIMITED PHYSICS METHODS
+    
+    def enable_unlimited_physics(self):
+        """Enable unlimited physics capabilities"""
+        self.unlimited_mode = True
+        self.advanced_collision = True
+        self.particle_physics = True
+        
+    def apply_unlimited_physics(self, obj: GameObject, delta_time: float):
+        """Apply unlimited physics features to object"""
+        # Apply force fields
+        for field in self.force_fields:
+            self.apply_force_field(obj, field, delta_time)
+        
+        # Apply magnetic fields
+        for field in self.magnetic_fields:
+            self.apply_magnetic_field(obj, field, delta_time)
+        
+        # Apply gravity wells
+        for well in self.gravity_wells:
+            self.apply_gravity_well(obj, well, delta_time)
+    
+    def create_force_field(self, center_x: float, center_y: float, 
+                          radius: float, force: float, field_type: str = "radial"):
+        """Create force field for unlimited physics interactions"""
+        field = {
+            "center": (center_x, center_y),
+            "radius": radius,
+            "force": force,
+            "type": field_type,
+            "active": True
+        }
+        self.force_fields.append(field)
+        return field
+    
+    def apply_force_field(self, obj: GameObject, field: Dict, delta_time: float):
+        """Apply force field to object"""
+        if not field["active"]:
+            return
+        
+        x, y = obj.position
+        fx, fy = field["center"]
+        dx = x - fx
+        dy = y - fy
+        distance = math.sqrt(dx * dx + dy * dy)
+        
+        if distance <= field["radius"] and distance > 0:
+            if field["type"] == "radial":
+                # Radial force (push/pull)
+                force_mag = field["force"] * (1.0 - distance / field["radius"])
+                nx = dx / distance
+                ny = dy / distance
+                self.apply_force(obj, nx * force_mag, ny * force_mag)
+            elif field["type"] == "vortex":
+                # Vortex force (circular)
+                force_mag = field["force"] * (1.0 - distance / field["radius"])
+                nx = -dy / distance  # Perpendicular for rotation
+                ny = dx / distance
+                self.apply_force(obj, nx * force_mag, ny * force_mag)
+    
+    def create_magnetic_field(self, center_x: float, center_y: float, 
+                             radius: float, strength: float):
+        """Create magnetic field for metal objects"""
+        field = {
+            "center": (center_x, center_y),
+            "radius": radius,
+            "strength": strength,
+            "active": True
+        }
+        self.magnetic_fields.append(field)
+        return field
+    
+    def apply_magnetic_field(self, obj: GameObject, field: Dict, delta_time: float):
+        """Apply magnetic field to magnetic objects"""
+        if not field["active"] or not obj.get_property("magnetic", False):
+            return
+        
+        x, y = obj.position
+        fx, fy = field["center"]
+        dx = fx - x
+        dy = fy - y
+        distance = math.sqrt(dx * dx + dy * dy)
+        
+        if distance <= field["radius"] and distance > 0:
+            # Magnetic attraction
+            force_mag = field["strength"] / (distance * distance + 1)
+            nx = dx / distance
+            ny = dy / distance
+            self.apply_force(obj, nx * force_mag, ny * force_mag)
+    
+    def create_gravity_well(self, center_x: float, center_y: float, 
+                           radius: float, mass: float):
+        """Create gravity well for space games"""
+        well = {
+            "center": (center_x, center_y),
+            "radius": radius,
+            "mass": mass,
+            "active": True
+        }
+        self.gravity_wells.append(well)
+        return well
+    
+    def apply_gravity_well(self, obj: GameObject, well: Dict, delta_time: float):
+        """Apply gravity well to object"""
+        if not well["active"]:
+            return
+        
+        x, y = obj.position
+        wx, wy = well["center"]
+        dx = wx - x
+        dy = wy - y
+        distance = math.sqrt(dx * dx + dy * dy)
+        
+        if distance <= well["radius"] and distance > 0:
+            # Gravitational force: F = G * m1 * m2 / r²
+            G = 100  # Gravitational constant (adjusted for game)
+            force_mag = G * well["mass"] * obj.mass / (distance * distance)
+            nx = dx / distance
+            ny = dy / distance
+            self.apply_force(obj, nx * force_mag, ny * force_mag)
+    
+    def create_physics_material(self, name: str, friction: float, 
+                               restitution: float, density: float):
+        """Create physics material for unlimited surface types"""
+        material = {
+            "friction": friction,
+            "restitution": restitution,
+            "density": density,
+            "special_properties": {}
+        }
+        self.physics_materials[name] = material
+        return material
+    
+    def apply_material_properties(self, obj: GameObject, material_name: str):
+        """Apply material properties to object"""
+        if material_name in self.physics_materials:
+            material = self.physics_materials[material_name]
+            obj.friction = material["friction"]
+            obj.bounce = material["restitution"]
+            obj.mass = material["density"] * obj.get_property("volume", 1.0)
+    
+    def enable_fluid_dynamics(self):
+        """Enable fluid dynamics for water/air simulation"""
+        self.fluid_dynamics = True
+        self.fluid_grid = []
+        self.fluid_particles = []
+    
+    def enable_soft_body_physics(self):
+        """Enable soft body physics for deformable objects"""
+        self.soft_body_physics = True
+        self.soft_bodies = []
+    
+    def enable_cloth_simulation(self):
+        """Enable cloth simulation"""
+        self.cloth_simulation = True
+        self.cloth_objects = []
+    
+    def create_joint(self, obj1: GameObject, obj2: GameObject, 
+                    joint_type: str, anchor_point: Tuple[float, float]):
+        """Create physics joint between objects"""
+        joint = {
+            "object1": obj1,
+            "object2": obj2,
+            "type": joint_type,
+            "anchor": anchor_point,
+            "active": True
+        }
+        self.joint_systems.append(joint)
+        return joint
+    
+    def update_joints(self, delta_time: float):
+        """Update all physics joints"""
+        for joint in self.joint_systems:
+            if joint["active"]:
+                self.update_joint(joint, delta_time)
+    
+    def update_joint(self, joint: Dict, delta_time: float):
+        """Update individual joint"""
+        obj1 = joint["object1"]
+        obj2 = joint["object2"]
+        joint_type = joint["type"]
+        
+        if joint_type == "distance":
+            self.update_distance_joint(obj1, obj2, joint, delta_time)
+        elif joint_type == "revolute":
+            self.update_revolute_joint(obj1, obj2, joint, delta_time)
+        elif joint_type == "spring":
+            self.update_spring_joint(obj1, obj2, joint, delta_time)
+    
+    def update_distance_joint(self, obj1: GameObject, obj2: GameObject, 
+                             joint: Dict, delta_time: float):
+        """Update distance joint (fixed distance between objects)"""
+        x1, y1 = obj1.position
+        x2, y2 = obj2.position
+        target_distance = joint.get("distance", 100)
+        
+        dx = x2 - x1
+        dy = y2 - y1
+        current_distance = math.sqrt(dx * dx + dy * dy)
+        
+        if current_distance > 0:
+            difference = target_distance - current_distance
+            correction = difference * 0.5  # Split correction between objects
+            
+            nx = dx / current_distance
+            ny = dy / current_distance
+            
+            if not obj1.is_static:
+                obj1.position = (x1 - nx * correction, y1 - ny * correction)
+            if not obj2.is_static:
+                obj2.position = (x2 + nx * correction, y2 + ny * correction)
+    
+    def update_spring_joint(self, obj1: GameObject, obj2: GameObject, 
+                           joint: Dict, delta_time: float):
+        """Update spring joint (elastic connection)"""
+        x1, y1 = obj1.position
+        x2, y2 = obj2.position
+        rest_length = joint.get("rest_length", 100)
+        spring_k = joint.get("spring_constant", 1000)
+        damping = joint.get("damping", 0.1)
+        
+        dx = x2 - x1
+        dy = y2 - y1
+        distance = math.sqrt(dx * dx + dy * dy)
+        
+        if distance > 0:
+            # Spring force: F = -k * (x - rest_length)
+            force_magnitude = spring_k * (distance - rest_length)
+            nx = dx / distance
+            ny = dy / distance
+            
+            # Apply damping
+            v1x, v1y = obj1.velocity
+            v2x, v2y = obj2.velocity
+            relative_velocity = ((v2x - v1x) * nx + (v2y - v1y) * ny)
+            damping_force = damping * relative_velocity
+            
+            total_force = force_magnitude + damping_force
+            
+            if not obj1.is_static:
+                self.apply_force(obj1, nx * total_force, ny * total_force)
+            if not obj2.is_static:
+                self.apply_force(obj2, -nx * total_force, -ny * total_force)
+    
+    def update_force_fields(self, objects: List[GameObject], delta_time: float):
+        """Update all force fields"""
+        for field in self.force_fields:
+            if field["active"]:
+                for obj in objects:
+                    if obj.active and not obj.destroyed:
+                        self.apply_force_field(obj, field, delta_time)

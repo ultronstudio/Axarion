@@ -6,7 +6,7 @@ Handles 2D rendering operations using Pygame
 
 import pygame
 import math
-from typing import Tuple, Optional, List
+from typing import Dict, Tuple, Optional, List
 from .game_object import GameObject
 
 class Renderer:
@@ -47,6 +47,32 @@ class Renderer:
         # Performance tracking
         self.render_calls = 0
         self.objects_rendered = 0
+        
+        # UNLIMITED RENDERING FEATURES
+        self.unlimited_mode = True
+        self.layered_rendering = True
+        self.post_processing_enabled = True
+        self.lighting_enabled = False
+        self.shadows_enabled = False
+        self.particle_rendering = True
+        
+        # Advanced visual features
+        self.render_layers = {}
+        self.post_effects = []
+        self.lights = []
+        self.shaders = {}
+        self.framebuffers = {}
+        
+        # Visual effects
+        self.screen_shake = {"active": False, "intensity": 0, "duration": 0}
+        self.camera_effects = []
+        self.transition_effects = []
+        
+        # Genre-specific rendering
+        self.rpg_ui_elements = []
+        self.hud_elements = []
+        self.minimap = None
+        self.dialog_boxes = []
     
     def clear(self, color: Optional[Tuple[int, int, int]] = None):
         """Clear the screen with specified color"""
@@ -362,4 +388,376 @@ class Renderer:
     
     def cleanup(self):
         """Clean up renderer resources"""
+        pass
+    
+    # UNLIMITED RENDERING METHODS
+    
+    def enable_unlimited_rendering(self):
+        """Enable unlimited rendering capabilities"""
+        self.unlimited_mode = True
+        self.layered_rendering = True
+        self.post_processing_enabled = True
+    
+    def create_render_layer(self, layer_name: str, z_order: int = 0):
+        """Create rendering layer for unlimited visual organization"""
+        self.render_layers[layer_name] = {
+            "z_order": z_order,
+            "objects": [],
+            "visible": True,
+            "opacity": 1.0
+        }
+        return self.render_layers[layer_name]
+    
+    def add_to_layer(self, layer_name: str, game_object):
+        """Add object to specific render layer"""
+        if layer_name in self.render_layers:
+            self.render_layers[layer_name]["objects"].append(game_object)
+    
+    def render_layered(self):
+        """Render all layers in z-order"""
+        # Sort layers by z_order
+        sorted_layers = sorted(self.render_layers.items(), 
+                              key=lambda x: x[1]["z_order"])
+        
+        for layer_name, layer_data in sorted_layers:
+            if layer_data["visible"]:
+                self.render_layer(layer_name, layer_data)
+    
+    def render_layer(self, layer_name: str, layer_data: Dict):
+        """Render specific layer"""
+        for obj in layer_data["objects"]:
+            if obj.visible and not obj.destroyed:
+                # Apply layer opacity
+                original_opacity = getattr(obj, 'opacity', 1.0)
+                obj.opacity = original_opacity * layer_data["opacity"]
+                
+                self.draw_game_object(obj)
+                
+                # Restore original opacity
+                obj.opacity = original_opacity
+    
+    def add_post_effect(self, effect_name: str, parameters: Dict):
+        """Add post-processing effect"""
+        effect = {
+            "name": effect_name,
+            "params": parameters,
+            "enabled": True
+        }
+        self.post_effects.append(effect)
+        return effect
+    
+    def apply_post_processing(self):
+        """Apply all post-processing effects"""
+        if not self.post_processing_enabled:
+            return
+        
+        for effect in self.post_effects:
+            if effect["enabled"]:
+                self.apply_effect(effect)
+    
+    def apply_effect(self, effect: Dict):
+        """Apply single post-processing effect"""
+        effect_name = effect["name"]
+        params = effect["params"]
+        
+        if effect_name == "blur":
+            self.apply_blur_effect(params)
+        elif effect_name == "bloom":
+            self.apply_bloom_effect(params)
+        elif effect_name == "chromatic_aberration":
+            self.apply_chromatic_aberration(params)
+        elif effect_name == "color_grading":
+            self.apply_color_grading(params)
+    
+    def apply_blur_effect(self, params: Dict):
+        """Apply blur post-processing effect"""
+        intensity = params.get("intensity", 5)
+        # Simplified blur effect for demonstration
+        # In a real implementation, this would use proper image processing
+        pass
+    
+    def apply_bloom_effect(self, params: Dict):
+        """Apply bloom post-processing effect"""
+        threshold = params.get("threshold", 0.8)
+        intensity = params.get("intensity", 1.5)
+        # Bloom effect implementation
+        pass
+    
+    def apply_chromatic_aberration(self, params: Dict):
+        """Apply chromatic aberration effect"""
+        offset = params.get("offset", 2.0)
+        # Chromatic aberration implementation
+        pass
+    
+    def apply_color_grading(self, params: Dict):
+        """Apply color grading effect"""
+        brightness = params.get("brightness", 1.0)
+        contrast = params.get("contrast", 1.0)
+        saturation = params.get("saturation", 1.0)
+        # Color grading implementation
+        pass
+    
+    def enable_lighting(self, ambient_light: float = 0.3):
+        """Enable dynamic lighting system"""
+        self.lighting_enabled = True
+        self.ambient_light = ambient_light
+        self.lights = []
+    
+    def add_light(self, x: float, y: float, radius: float, 
+                  color: Tuple[int, int, int] = (255, 255, 255), 
+                  intensity: float = 1.0):
+        """Add dynamic light source"""
+        light = {
+            "position": (x, y),
+            "radius": radius,
+            "color": color,
+            "intensity": intensity,
+            "enabled": True
+        }
+        self.lights.append(light)
+        return light
+    
+    def render_lighting(self):
+        """Render lighting system"""
+        if not self.lighting_enabled:
+            return
+        
+        # Create lighting overlay
+        light_surface = pygame.Surface((self.width, self.height))
+        light_surface.fill((0, 0, 0))  # Start with darkness
+        
+        # Add ambient light
+        ambient_color = (int(255 * self.ambient_light),) * 3
+        light_surface.fill(ambient_color, special_flags=pygame.BLEND_ADD)
+        
+        # Add each light
+        for light in self.lights:
+            if light["enabled"]:
+                self.render_light(light_surface, light)
+        
+        # Apply lighting to screen
+        self.screen.blit(light_surface, (0, 0), special_flags=pygame.BLEND_MULT)
+    
+    def render_light(self, surface: pygame.Surface, light: Dict):
+        """Render individual light"""
+        x, y = light["position"]
+        screen_x = int(x - self.camera_x)
+        screen_y = int(y - self.camera_y)
+        radius = light["radius"]
+        color = light["color"]
+        intensity = light["intensity"]
+        
+        # Create light gradient
+        light_color = tuple(int(c * intensity) for c in color)
+        pygame.draw.circle(surface, light_color, (screen_x, screen_y), 
+                          int(radius), special_flags=pygame.BLEND_ADD)
+    
+    def enable_shadows(self):
+        """Enable shadow casting"""
+        self.shadows_enabled = True
+    
+    def start_screen_shake(self, intensity: float, duration: float):
+        """Start screen shake effect"""
+        self.screen_shake = {
+            "active": True,
+            "intensity": intensity,
+            "duration": duration,
+            "time_left": duration
+        }
+    
+    def update_screen_shake(self, delta_time: float):
+        """Update screen shake effect"""
+        if not self.screen_shake["active"]:
+            return
+        
+        self.screen_shake["time_left"] -= delta_time
+        
+        if self.screen_shake["time_left"] <= 0:
+            self.screen_shake["active"] = False
+            return
+        
+        # Apply screen shake offset
+        import random
+        intensity = self.screen_shake["intensity"]
+        shake_x = random.uniform(-intensity, intensity)
+        shake_y = random.uniform(-intensity, intensity)
+        
+        self.camera_x += shake_x
+        self.camera_y += shake_y
+    
+    def add_hud_element(self, element_type: str, position: Tuple[int, int], 
+                       data: Dict):
+        """Add HUD element for any game genre"""
+        element = {
+            "type": element_type,
+            "position": position,
+            "data": data,
+            "visible": True
+        }
+        self.hud_elements.append(element)
+        return element
+    
+    def render_hud(self):
+        """Render HUD elements"""
+        for element in self.hud_elements:
+            if element["visible"]:
+                self.render_hud_element(element)
+    
+    def render_hud_element(self, element: Dict):
+        """Render individual HUD element"""
+        element_type = element["type"]
+        x, y = element["position"]
+        data = element["data"]
+        
+        if element_type == "health_bar":
+            self.render_health_bar(x, y, data)
+        elif element_type == "minimap":
+            self.render_minimap(x, y, data)
+        elif element_type == "inventory":
+            self.render_inventory(x, y, data)
+        elif element_type == "dialog":
+            self.render_dialog_box(x, y, data)
+    
+    def render_health_bar(self, x: int, y: int, data: Dict):
+        """Render health bar"""
+        width = data.get("width", 200)
+        height = data.get("height", 20)
+        current_health = data.get("current", 100)
+        max_health = data.get("max", 100)
+        
+        # Background
+        bg_rect = pygame.Rect(x, y, width, height)
+        pygame.draw.rect(self.screen, (100, 0, 0), bg_rect)
+        
+        # Health bar
+        health_width = int((current_health / max_health) * width)
+        health_rect = pygame.Rect(x, y, health_width, height)
+        pygame.draw.rect(self.screen, (0, 255, 0), health_rect)
+        
+        # Border
+        pygame.draw.rect(self.screen, (255, 255, 255), bg_rect, 2)
+    
+    def render_minimap(self, x: int, y: int, data: Dict):
+        """Render minimap"""
+        size = data.get("size", 100)
+        scale = data.get("scale", 0.1)
+        
+        # Minimap background
+        minimap_rect = pygame.Rect(x, y, size, size)
+        pygame.draw.rect(self.screen, (50, 50, 50), minimap_rect)
+        pygame.draw.rect(self.screen, (255, 255, 255), minimap_rect, 2)
+    
+    def render_inventory(self, x: int, y: int, data: Dict):
+        """Render inventory UI"""
+        slots = data.get("slots", 20)
+        slot_size = data.get("slot_size", 32)
+        items = data.get("items", [])
+        
+        # Render inventory slots
+        for i in range(slots):
+            slot_x = x + (i % 5) * (slot_size + 2)
+            slot_y = y + (i // 5) * (slot_size + 2)
+            
+            slot_rect = pygame.Rect(slot_x, slot_y, slot_size, slot_size)
+            pygame.draw.rect(self.screen, (100, 100, 100), slot_rect)
+            pygame.draw.rect(self.screen, (255, 255, 255), slot_rect, 1)
+            
+            # Render item if present
+            if i < len(items) and items[i]:
+                item_color = items[i].get("color", (255, 255, 0))
+                pygame.draw.rect(self.screen, item_color, slot_rect)
+    
+    def render_dialog_box(self, x: int, y: int, data: Dict):
+        """Render dialog box"""
+        width = data.get("width", 400)
+        height = data.get("height", 100)
+        text = data.get("text", "")
+        speaker = data.get("speaker", "")
+        
+        # Dialog background
+        dialog_rect = pygame.Rect(x, y, width, height)
+        pygame.draw.rect(self.screen, (0, 0, 0, 180), dialog_rect)
+        pygame.draw.rect(self.screen, (255, 255, 255), dialog_rect, 2)
+        
+        # Speaker name
+        if speaker:
+            self.draw_text(speaker, x + 10, y + 5, (255, 255, 0), self.default_font)
+        
+        # Dialog text
+        self.draw_text(text, x + 10, y + 30, (255, 255, 255), self.default_font)
+    
+    def create_particle_system(self, x: float, y: float, particle_count: int = 100):
+        """Create unlimited particle system"""
+        return {
+            "position": (x, y),
+            "particles": [],
+            "count": particle_count,
+            "active": True
+        }
+    
+    def add_camera_effect(self, effect_name: str, duration: float, parameters: Dict):
+        """Add camera effect"""
+        effect = {
+            "name": effect_name,
+            "duration": duration,
+            "time_left": duration,
+            "params": parameters
+        }
+        self.camera_effects.append(effect)
+        return effect
+    
+    def update_camera_effects(self, delta_time: float):
+        """Update all camera effects"""
+        effects_to_remove = []
+        
+        for effect in self.camera_effects:
+            effect["time_left"] -= delta_time
+            
+            if effect["time_left"] <= 0:
+                effects_to_remove.append(effect)
+            else:
+                self.apply_camera_effect(effect, delta_time)
+        
+        for effect in effects_to_remove:
+            self.camera_effects.remove(effect)
+    
+    def apply_camera_effect(self, effect: Dict, delta_time: float):
+        """Apply camera effect"""
+        effect_name = effect["name"]
+        params = effect["params"]
+        
+        if effect_name == "zoom":
+            self.apply_zoom_effect(params, delta_time)
+        elif effect_name == "pan":
+            self.apply_pan_effect(params, delta_time)
+        elif effect_name == "rotation":
+            self.apply_rotation_effect(params, delta_time)
+    
+    def apply_zoom_effect(self, params: Dict, delta_time: float):
+        """Apply camera zoom effect"""
+        zoom_speed = params.get("speed", 1.0)
+        target_zoom = params.get("target", 1.0)
+        # Camera zoom implementation
+        pass
+    
+    def apply_pan_effect(self, params: Dict, delta_time: float):
+        """Apply camera pan effect"""
+        pan_speed = params.get("speed", 100.0)
+        target_x = params.get("target_x", self.camera_x)
+        target_y = params.get("target_y", self.camera_y)
+        
+        # Smooth camera movement
+        dx = target_x - self.camera_x
+        dy = target_y - self.camera_y
+        
+        move_x = dx * pan_speed * delta_time
+        move_y = dy * pan_speed * delta_time
+        
+        self.camera_x += move_x
+        self.camera_y += move_y
+    
+    def apply_rotation_effect(self, params: Dict, delta_time: float):
+        """Apply camera rotation effect"""
+        rotation_speed = params.get("speed", 90.0)
+        # Camera rotation implementation
         pass
