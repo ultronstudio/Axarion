@@ -820,6 +820,44 @@ class GameObject:
             self.update_state_machine(delta_time, params)
         elif ai_type == "behavior_tree":
             self.update_behavior_tree(delta_time, params)
+        elif ai_type == "follow":
+            self.update_follow_ai(delta_time, params)
+        elif ai_type == "patrol":
+            self.update_patrol_ai(delta_time, params)
+    
+    def update_follow_ai(self, delta_time: float, params: Dict):
+        """Simple follow AI"""
+        target = params.get("target")
+        speed = params.get("speed", 100)
+        min_distance = params.get("min_distance", 50)
+        
+        if target:
+            target_pos = getattr(target, 'position', target)
+            x, y = self.position
+            tx, ty = target_pos
+            
+            distance = math.sqrt((tx - x) ** 2 + (ty - y) ** 2)
+            if distance > min_distance:
+                self.move_towards(target_pos, speed)
+    
+    def update_patrol_ai(self, delta_time: float, params: Dict):
+        """Patrol AI behavior"""
+        if not self.patrol_points:
+            return
+        
+        speed = params.get("speed", 100)
+        arrival_distance = params.get("arrival_distance", 10)
+        
+        target_point = self.patrol_points[self.current_patrol_index]
+        x, y = self.position
+        tx, ty = target_point
+        
+        distance = math.sqrt((tx - x) ** 2 + (ty - y) ** 2)
+        
+        if distance <= arrival_distance:
+            self.current_patrol_index = (self.current_patrol_index + 1) % len(self.patrol_points)
+        else:
+            self.move_towards(target_point, speed)
     
     def update_pathfinding(self, delta_time: float, params: Dict):
         """Update pathfinding AI"""

@@ -48,6 +48,24 @@ class Renderer:
         self.render_calls = 0
         self.objects_rendered = 0
         
+        # Sprite batching system
+        self.enable_sprite_batching = True
+        self.sprite_batches = {}
+        self.current_batch_size = 0
+        self.max_batch_size = 100
+        
+        # Frustum culling
+        self.enable_frustum_culling = True
+        self.camera_bounds = (0, 0, width, height)
+        
+        # Layer system
+        self.layers = {}
+        self.sorted_layers = []
+        
+        # Quality settings
+        self.enable_antialiasing = True
+        self.particle_limit = 500
+        
         # UNLIMITED RENDERING FEATURES
         self.unlimited_mode = True
         self.layered_rendering = True
@@ -225,9 +243,16 @@ class Renderer:
         self.render_calls += 1
     
     def draw_game_object(self, game_object: GameObject):
-        """Draw a game object"""
+        """Draw a game object with batching support"""
         if not game_object.visible or game_object.destroyed:
             return
+        
+        # Frustum culling
+        if self.enable_frustum_culling and not self.is_in_camera_bounds(game_object):
+            return
+        
+        # Get layer for rendering order
+        layer = getattr(game_object, 'layer', 0)
         
         x, y = game_object.position
         rotation = game_object.rotation
@@ -257,7 +282,10 @@ class Renderer:
             sprite_surface = game_object.get_current_sprite()
             
             if sprite_surface:
-                self.draw_sprite(x, y, sprite_surface, rotation)
+                if self.enable_sprite_batching:
+                    self.add_to_sprite_batch(game_object, sprite_surface)
+                else:
+                    self.draw_sprite(x, y, sprite_surface, rotation)
             else:
                 # Fallback to rectangle if sprite not found
                 width = game_object.properties.get("width", 32)
@@ -283,6 +311,64 @@ class Renderer:
             self.draw_object_debug(game_object)
         
         self.objects_rendered += 1
+    
+    def is_in_camera_bounds(self, game_object: GameObject) -> bool:
+        """Check if object is within camera bounds for culling"""
+        bounds = game_object.get_bounds()
+        cam_x, cam_y = self.camera_x, self.camera_y
+        cam_right = cam_x + self.width
+        cam_bottom = cam_y + self.height
+        
+        return not (bounds[2] < cam_x or bounds[0] > cam_right or 
+                   bounds[3] < cam_y or bounds[1] > cam_bottom)
+    
+    def add_to_sprite_batch(self, game_object, sprite_surface):
+        """Add sprite to batch for optimized rendering"""
+        batch_key = id(sprite_surface)
+        
+        if batch_key not in self.sprite_batches:
+            self.sprite_batches[batch_key] = {
+                'surface': sprite_surface,
+                'objects': []
+            }
+        
+        self.sprite_batches[batch_key]['objects'].append(game_object)
+        self.current_batch_size += 1
+        
+        # Flush batch if it's full
+        if self.current_batch_size >= self.max_batch_size:
+            self.flush_sprite_batches()
+    
+    def flush_sprite_batches(self):
+        """Render all batched sprites"""
+        for batch in self.sprite_batches.values():
+            for obj in batch['objects']:
+                x, y = obj.position
+                rotation = obj.rotation
+                self.draw_sprite(x, y, batch['surface'], rotation)
+        
+        self.sprite_batches.clear()
+        self.current_batch_size = 0
+    
+    def add_to_layer(self, layer_id: int, game_object: GameObject):
+        """Add object to rendering layer"""
+        if layer_id not in self.layers:
+            self.layers[layer_id] = []
+            self._sort_layers()
+        
+        self.layers[layer_id].append(game_object)
+        game_object.layer = layer_id
+    
+    def _sort_layers(self):
+        """Sort layers by ID for proper rendering order"""
+        self.sorted_layers = sorted(self.layers.keys())
+    
+    def render_layers(self):
+        """Render all objects by layer order"""
+        for layer_id in self.sorted_layers:
+            for obj in self.layers[layer_id]:
+                if obj.visible and not obj.destroyed:
+                    self.draw_game_object(obj)
     
     def draw_object_debug(self, game_object: GameObject):
         """Draw debug information for an object"""

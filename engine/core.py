@@ -342,8 +342,32 @@ class AxarionEngine:
         
         # Update FPS every second
         if current_time - self.performance_stats.get('last_fps_update', 0) >= 1.0:
-            self.performance_stats['fps'] = self.frame_count / (current_time - self.performance_stats.get('start_time', current_time))
+            elapsed = current_time - self.performance_stats.get('start_time', current_time)
+            if elapsed > 0:
+                self.performance_stats['fps'] = self.frame_count / elapsed
             self.performance_stats['last_fps_update'] = current_time
+    
+    def optimize_rendering(self, enable_culling=True, enable_batching=True):
+        """Optimize rendering performance"""
+        if enable_culling:
+            self.renderer.enable_frustum_culling = True
+        if enable_batching:
+            self.renderer.enable_sprite_batching = True
+    
+    def set_quality_settings(self, quality_level="medium"):
+        """Set graphics quality settings"""
+        if quality_level == "low":
+            self.renderer.enable_antialiasing = False
+            self.renderer.particle_limit = 100
+            self.target_fps = 30
+        elif quality_level == "medium":
+            self.renderer.enable_antialiasing = True
+            self.renderer.particle_limit = 500
+            self.target_fps = 60
+        elif quality_level == "high":
+            self.renderer.enable_antialiasing = True
+            self.renderer.particle_limit = 1000
+            self.target_fps = 60
     
     def render(self):
         """High-performance rendering with monitoring"""
