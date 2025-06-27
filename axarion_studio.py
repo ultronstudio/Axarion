@@ -1,6 +1,6 @@
 """
-Axarion Studio - Professional Game Development IDE
-Advanced code editor for Axarion Engine with real-time error checking
+Axarion Studio 
+code editor for Axarion Engine with real-time error checking
 """
 
 import tkinter as tk
@@ -566,7 +566,7 @@ class AxarionStudio:
 
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Axarion Studio - Game Build System")
+        self.root.title("Axarion Studio")
         self.root.geometry("1400x900")
 
         # Configure style
