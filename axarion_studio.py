@@ -24,6 +24,13 @@ try:
 except ImportError as e:
     print(f"Warning: Some Axarion components not available: {e}")
 
+# Import PyInstaller for game packaging
+try:
+    import PyInstaller
+    PYINSTALLER_AVAILABLE = True
+except ImportError:
+    PYINSTALLER_AVAILABLE = False
+
 class SyntaxHighlighter:
     """Advanced syntax highlighter for Python and AXScript"""
 
@@ -559,7 +566,7 @@ class AxarionStudio:
 
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Axarion Studio - Game Development IDE")
+        self.root.title("Axarion Studio - Game Build System")
         self.root.geometry("1400x900")
 
         # Configure style
@@ -654,6 +661,22 @@ class AxarionStudio:
             }
         }
 
+        # Build settings (integrated Game Packager)
+        self.build_settings = {
+            "output_path": "",
+            "game_name": "MyGame",
+            "include_assets": True,
+            "include_engine": True,
+            "include_scripting": True,
+            "include_utils": True,
+            "icon_file": "",
+            "show_console": False,
+            "single_file": True,
+            "compress": True,
+            "auto_detect_main": True,
+            "last_build_path": ""
+        }
+
         # Editor settings
         self.editor_settings = {
             "appearance": {
@@ -743,6 +766,11 @@ class AxarionStudio:
         # Game controls
         ttk.Button(toolbar, text="▶️ Run Game", command=self.run_game).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="🛑 Stop Game", command=self.stop_game).pack(side=tk.LEFT, padx=2)
+
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=5, fill=tk.Y)
+
+        # Build controls
+        ttk.Button(toolbar, text="📦 Build EXE", command=self.show_build_dialog).pack(side=tk.LEFT, padx=2)
 
         # File info
         self.file_info = ttk.Label(toolbar, text="No file open")
@@ -834,26 +862,36 @@ class AxarionStudio:
         game_menu.add_command(label="Create Asset Manager", command=self.create_asset_manager)
         game_menu.add_command(label="Game Templates", command=self.show_templates)
 
-        # Settings menu
+        # Build menu (primary focus)
+        build_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Build", menu=build_menu)
+        build_menu.add_command(label="📦 Package Game to EXE", command=self.show_build_dialog, accelerator="Ctrl+B")
+        build_menu.add_separator()
+        build_menu.add_command(label="🏗️ Check Build Dependencies", command=self.check_build_dependencies)
+        build_menu.add_command(label="📋 Generate PyInstaller Spec", command=self.generate_build_spec)
+        build_menu.add_separator()
+        build_menu.add_command(label="📁 Open Build Folder", command=self.open_build_folder)
+        build_menu.add_command(label="🧹 Clean Build Files", command=self.clean_build_files)
+
+        # Settings menu (simplified)
         settings_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Settings", menu=settings_menu)
-        settings_menu.add_command(label="Engine Settings", command=self.show_engine_settings)
+        settings_menu.add_command(label="Build Settings", command=self.show_build_settings)
         settings_menu.add_command(label="Editor Settings", command=self.show_editor_settings)
-        settings_menu.add_command(label="Performance Tuning", command=self.show_performance_settings)
-        settings_menu.add_command(label="Code Analysis", command=self.show_code_analysis_settings)
-        settings_menu.add_command(label="Reset to Defaults", command=self.reset_settings)
-        settings_menu.add_separator()
-        settings_menu.add_command(label="Import Settings", command=self.import_settings)
-        settings_menu.add_command(label="Export Settings", command=self.export_settings)
 
-        # Help menu
+        # Help menu (expanded with docs)
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
-        help_menu.add_command(label="AXScript Documentation", command=self.show_axscript_docs)
-        help_menu.add_command(label="Axarion Engine Guide", command=self.show_engine_docs)
-        help_menu.add_command(label="Advanced Settings", command=self.show_advanced_settings)
+        help_menu.add_command(label="📖 Getting Started Guide", command=self.show_getting_started)
+        help_menu.add_command(label="⚡ Quick Reference", command=self.show_quick_reference)
+        help_menu.add_command(label="🎮 Complete Game Tutorial", command=self.show_complete_tutorial)
         help_menu.add_separator()
-        help_menu.add_command(label="About", command=self.show_about)
+        help_menu.add_command(label="⚡ AXScript Documentation", command=self.show_axscript_docs)
+        help_menu.add_command(label="🔧 Axarion Engine Guide", command=self.show_engine_docs)
+        help_menu.add_separator()
+        help_menu.add_command(label="❤️ Attribution Guide", command=self.show_attribution_guide)
+        help_menu.add_separator()
+        help_menu.add_command(label="ℹ️ About Axarion Studio", command=self.show_about)
 
         # Keyboard shortcuts
         self.root.bind('<Control-n>', lambda e: self.new_file())
@@ -862,6 +900,8 @@ class AxarionStudio:
         self.root.bind('<Control-Shift-s>', lambda e: self.save_file_as())
         self.root.bind('<F5>', lambda e: self.run_game())
         self.root.bind('<Shift-F5>', lambda e: self.stop_game())
+        self.root.bind('<Control-b>', lambda e: self.show_build_dialog())
+        self.root.bind('<F1>', lambda e: self.show_getting_started())
 
     def on_code_change(self, event=None):
         """Handle code changes"""
@@ -1618,7 +1658,8 @@ Common Patterns:
         try:
             settings_data = {
                 "engine": self.engine_settings,
-                "editor": self.editor_settings
+                "editor": self.editor_settings,
+                "build": self.build_settings
             }
 
             settings_file = "axarion_studio_settings.json"
@@ -1641,6 +1682,9 @@ Common Patterns:
 
                 if "editor" in settings_data:
                     self.editor_settings.update(settings_data["editor"])
+
+                if "build" in settings_data:
+                    self.build_settings.update(settings_data["build"])
 
                 self.apply_editor_appearance()
 
@@ -2063,43 +2107,748 @@ engine.initialize(**engine_config)
             except Exception as e:
                 messagebox.showerror("Import Error", f"Failed to import settings: {e}")
 
+    # Version information
+    STUDIO_VERSION = "1.0"
+    ENGINE_VERSION = "0.7.5"
+    AXSCRIPT_VERSION = "1.0"
+    BUILD_DATE = "2025-06-27"
+
+    def show_build_settings(self):
+        """Show simplified build settings dialog"""
+        settings_window = tk.Toplevel(self.root)
+        settings_window.title("Build Settings")
+        settings_window.geometry("400x300")
+        settings_window.resizable(False, False)
+
+        # Build defaults
+        build_frame = ttk.LabelFrame(settings_window, text="Default Build Options")
+        build_frame.pack(fill=tk.X, padx=10, pady=10)
+
+        include_assets_var = tk.BooleanVar(value=self.build_settings["include_assets"])
+        ttk.Checkbutton(build_frame, text="Include assets folder by default", variable=include_assets_var).pack(anchor=tk.W, padx=5, pady=2)
+
+        include_engine_var = tk.BooleanVar(value=self.build_settings["include_engine"])
+        ttk.Checkbutton(build_frame, text="Include Axarion Engine", variable=include_engine_var).pack(anchor=tk.W, padx=5, pady=2)
+
+        single_file_var = tk.BooleanVar(value=self.build_settings["single_file"])
+        ttk.Checkbutton(build_frame, text="Build as single file", variable=single_file_var).pack(anchor=tk.W, padx=5, pady=2)
+
+        compress_var = tk.BooleanVar(value=self.build_settings["compress"])
+        ttk.Checkbutton(build_frame, text="Compress executable", variable=compress_var).pack(anchor=tk.W, padx=5, pady=2)
+
+        # Buttons
+        button_frame = ttk.Frame(settings_window)
+        button_frame.pack(fill=tk.X, padx=10, pady=20)
+
+        def apply_build_settings():
+            self.build_settings["include_assets"] = include_assets_var.get()
+            self.build_settings["include_engine"] = include_engine_var.get()
+            self.build_settings["single_file"] = single_file_var.get()
+            self.build_settings["compress"] = compress_var.get()
+            self.save_settings()
+            settings_window.destroy()
+
+        ttk.Button(button_frame, text="Apply", command=apply_build_settings).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=settings_window.destroy).pack(side=tk.RIGHT, padx=5)
+
+    def show_getting_started(self):
+        """Show Getting Started documentation"""
+        self.show_documentation_file("DOCS/GETTING_STARTED.md", "📖 Getting Started Guide")
+
+    def show_quick_reference(self):
+        """Show Quick Reference documentation"""
+        self.show_documentation_file("DOCS/QUICK_REFERENCE.md", "⚡ Quick Reference")
+
+    def show_complete_tutorial(self):
+        """Show Complete Game Tutorial"""
+        self.show_documentation_file("DOCS/TUTORIAL_COMPLETE_GAME.md", "🎮 Complete Game Tutorial")
+
+    def show_attribution_guide(self):
+        """Show Attribution Guide"""
+        self.show_documentation_file("DOCS/Axarion_Attribution_Guide.md", "❤️ Attribution Guide")
+
+    def show_documentation_file(self, filepath, title):
+        """Show documentation file in a window"""
+        doc_window = tk.Toplevel(self.root)
+        doc_window.title(title)
+        doc_window.geometry("800x600")
+        doc_window.resizable(True, True)
+
+        # Text widget with scrollbar
+        text_frame = ttk.Frame(doc_window)
+        text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        text_widget = scrolledtext.ScrolledText(text_frame, wrap=tk.WORD, font=('Consolas', 10))
+        text_widget.pack(fill=tk.BOTH, expand=True)
+
+        # Load documentation content
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+            text_widget.insert(tk.END, content)
+            text_widget.config(state=tk.DISABLED)
+        except FileNotFoundError:
+            text_widget.insert(tk.END, f"Documentation file not found: {filepath}")
+            text_widget.config(state=tk.DISABLED)
+        except Exception as e:
+            text_widget.insert(tk.END, f"Error loading documentation: {e}")
+            text_widget.config(state=tk.DISABLED)
+
+        # Close button
+        button_frame = ttk.Frame(doc_window)
+        button_frame.pack(fill=tk.X, padx=10, pady=5)
+        ttk.Button(button_frame, text="Close", command=doc_window.destroy).pack(side=tk.RIGHT)
+
     def show_about(self):
-        """Show about dialog"""
-        about_text = """Axarion Studio v1.1 - Advanced Developer Edition
+        """Show about dialog with version information"""
+        about_text = f"""Axarion Studio v{self.STUDIO_VERSION} - Game Build System
 
-Professional Game Development IDE for Axarion Engine
+🎮 Professional Game Development IDE for Axarion Engine
 
-Features:
-• Real-time error checking & debugging
-• Advanced syntax highlighting
-• Code templates & snippets
-• Comprehensive file explorer
-• Integrated game runner
-• Full AXScript support
-• Extensive engine configuration
-• Developer power tools
-• Performance profiling
-• Code analysis tools
-• Networking support
-• Hot reload & live editing
+Version Information:
+• Studio Version: {self.STUDIO_VERSION}
+• Engine Version: {self.ENGINE_VERSION}
+• AXScript Version: {self.AXSCRIPT_VERSION}
+• Build Date: {self.BUILD_DATE}
 
-Advanced Developer Features:
-• Variable inspector & call stack
-• Breakpoint debugging
-• Memory tracking & optimization
-• Performance overlay
-• Code coverage analysis
-• Custom shader support
-• Texture atlas generation
-• Object pooling system
+Core Features:
+• 📦 One-click game packaging to EXE
+• ⚡ Real-time error checking & debugging
+• 🎨 Advanced syntax highlighting
+• 📁 Comprehensive file explorer
+• ▶️ Integrated game runner
+• 📜 Full AXScript support
+• 🔧 Build system with dependency management
 
-Created for serious game developers ❤️"""
+Build & Distribution:
+• 🚀 Integrated EXE packager (no external tools needed!)
+• 📋 Automatic dependency detection
+• 📁 Asset bundling system
+• 🖼️ Custom icon support
+• 🗜️ Compression options
+• 📄 Single-file or directory builds
+
+Engine Integration:
+• Complete Axarion Engine v{self.ENGINE_VERSION}
+• Advanced physics system
+• Particle effects
+• Audio system with 3D positioning
+• Animation system
+• Asset management
+
+Perfect for indie game developers who want a code-first approach! 
+
+Created with ❤️ for the game development community"""
 
         messagebox.showinfo("About Axarion Studio", about_text)
 
+    # ===============================
+    # INTEGRATED GAME PACKAGER METHODS
+    # ===============================
+
+    def show_build_dialog(self):
+        """Show integrated build/package dialog"""
+        # Special case: Building Axarion Studio itself
+        current_script = os.path.abspath(__file__)
+        if self.current_file and os.path.samefile(self.current_file, current_script):
+            self.show_studio_build_dialog()
+            return
+            
+        if not self.file_explorer.current_project:
+            messagebox.showwarning("No Project", "Please open a project first using the file explorer.")
+            return
+
+        build_window = tk.Toplevel(self.root)
+        build_window.title("📦 Build Game to EXE")
+        build_window.geometry("700x800")
+        build_window.resizable(True, True)
+
+        # Main frame
+        main_frame = ttk.Frame(build_window, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Title
+        title_label = ttk.Label(main_frame, text="🎮 Build Axarion Game to EXE", 
+                               font=("Arial", 14, "bold"))
+        title_label.pack(pady=(0, 15))
+
+        # Auto-detect project info
+        project_path = self.file_explorer.current_project
+        main_file = self.detect_main_file(project_path)
+
+        # Project info (read-only)
+        info_frame = ttk.LabelFrame(main_frame, text="📁 Project Information")
+        info_frame.pack(fill=tk.X, pady=10)
+
+        ttk.Label(info_frame, text="Project Folder:").pack(anchor=tk.W, padx=5)
+        project_label = ttk.Label(info_frame, text=project_path, foreground="blue")
+        project_label.pack(anchor=tk.W, padx=15, pady=2)
+
+        ttk.Label(info_frame, text="Main File:").pack(anchor=tk.W, padx=5, pady=(10, 0))
+        main_var = tk.StringVar(value=main_file if main_file else "main.py")
+        main_combo = ttk.Combobox(info_frame, textvariable=main_var, width=50)
+        main_combo['values'] = self.get_python_files(project_path)
+        main_combo.pack(anchor=tk.W, padx=15, pady=2)
+
+        # Build settings
+        settings_frame = ttk.LabelFrame(main_frame, text="⚙️ Build Settings")
+        settings_frame.pack(fill=tk.X, pady=10)
+
+        # Game name
+        ttk.Label(settings_frame, text="Game Name:").pack(anchor=tk.W, padx=5)
+        name_var = tk.StringVar(value=self.build_settings["game_name"])
+        name_entry = ttk.Entry(settings_frame, textvariable=name_var, width=50)
+        name_entry.pack(anchor=tk.W, padx=15, pady=2)
+
+        # Output folder
+        ttk.Label(settings_frame, text="Output Folder:").pack(anchor=tk.W, padx=5, pady=(10, 0))
+        output_frame = ttk.Frame(settings_frame)
+        output_frame.pack(fill=tk.X, padx=15, pady=2)
+
+        output_var = tk.StringVar(value=self.build_settings["output_path"] or os.path.join(project_path, "dist"))
+        output_entry = ttk.Entry(output_frame, textvariable=output_var, width=45)
+        output_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Button(output_frame, text="Browse", 
+                  command=lambda: self.browse_output_folder(output_var)).pack(side=tk.RIGHT, padx=(5, 0))
+
+        # Icon (optional)
+        ttk.Label(settings_frame, text="Icon (optional):").pack(anchor=tk.W, padx=5, pady=(10, 0))
+        icon_frame = ttk.Frame(settings_frame)
+        icon_frame.pack(fill=tk.X, padx=15, pady=2)
+
+        icon_var = tk.StringVar(value=self.build_settings["icon_file"])
+        icon_entry = ttk.Entry(icon_frame, textvariable=icon_var, width=45)
+        icon_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Button(icon_frame, text="Browse", 
+                  command=lambda: self.browse_icon_file(icon_var)).pack(side=tk.RIGHT, padx=(5, 0))
+
+        # Build options
+        options_frame = ttk.LabelFrame(main_frame, text="📋 Build Options")
+        options_frame.pack(fill=tk.X, pady=10)
+
+        assets_var = tk.BooleanVar(value=self.build_settings["include_assets"])
+        ttk.Checkbutton(options_frame, text="📁 Include assets folder", 
+                       variable=assets_var).pack(anchor=tk.W, padx=5, pady=2)
+
+        engine_var = tk.BooleanVar(value=self.build_settings["include_engine"])
+        ttk.Checkbutton(options_frame, text="⚡ Include Axarion Engine (recommended)", 
+                       variable=engine_var).pack(anchor=tk.W, padx=5, pady=2)
+
+        scripting_var = tk.BooleanVar(value=self.build_settings["include_scripting"])
+        ttk.Checkbutton(options_frame, text="📜 Include AXScript system", 
+                       variable=scripting_var).pack(anchor=tk.W, padx=5, pady=2)
+
+        utils_var = tk.BooleanVar(value=self.build_settings["include_utils"])
+        ttk.Checkbutton(options_frame, text="🔧 Include utilities", 
+                       variable=utils_var).pack(anchor=tk.W, padx=5, pady=2)
+
+        console_var = tk.BooleanVar(value=self.build_settings["show_console"])
+        ttk.Checkbutton(options_frame, text="💻 Show console window", 
+                       variable=console_var).pack(anchor=tk.W, padx=5, pady=2)
+
+        single_var = tk.BooleanVar(value=self.build_settings["single_file"])
+        ttk.Checkbutton(options_frame, text="📄 Single file executable (slower startup)", 
+                       variable=single_var).pack(anchor=tk.W, padx=5, pady=2)
+
+        compress_var = tk.BooleanVar(value=self.build_settings["compress"])
+        ttk.Checkbutton(options_frame, text="🗜️ Compress executable", 
+                       variable=compress_var).pack(anchor=tk.W, padx=5, pady=2)
+
+        # Progress
+        progress_frame = ttk.Frame(main_frame)
+        progress_frame.pack(fill=tk.X, pady=10)
+
+        self.build_progress_var = tk.StringVar(value="Ready to build")
+        ttk.Label(progress_frame, textvariable=self.build_progress_var).pack()
+
+        self.build_progress_bar = ttk.Progressbar(progress_frame, mode='indeterminate')
+        self.build_progress_bar.pack(fill=tk.X, pady=5)
+
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=15)
+
+        ttk.Button(button_frame, text="🏗️ Check Dependencies", 
+                  command=lambda: self.check_build_dependencies_dialog(build_window)).pack(side=tk.LEFT, padx=5)
+
+        build_btn = ttk.Button(button_frame, text="📦 Build Game", 
+                              command=lambda: self.build_game(
+                                  project_path, main_var.get(), name_var.get(), 
+                                  output_var.get(), icon_var.get(),
+                                  assets_var.get(), engine_var.get(), scripting_var.get(), 
+                                  utils_var.get(), console_var.get(), single_var.get(), 
+                                  compress_var.get(), build_window
+                              ))
+        build_btn.pack(side=tk.RIGHT, padx=5)
+
+        ttk.Button(button_frame, text="📋 Generate Spec", 
+                  command=lambda: self.generate_build_spec_dialog(
+                      project_path, main_var.get(), name_var.get(),
+                      assets_var.get(), engine_var.get(), scripting_var.get(), 
+                      utils_var.get(), icon_var.get(), console_var.get()
+                  )).pack(side=tk.RIGHT, padx=5)
+
+        # Build log
+        log_frame = ttk.LabelFrame(main_frame, text="📝 Build Output")
+        log_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+
+        self.build_log = scrolledtext.ScrolledText(log_frame, height=10, wrap=tk.WORD)
+        self.build_log.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Initial log message
+        self.build_log_append("🎮 Axarion Studio Build System ready")
+        self.build_log_append(f"📁 Project: {project_path}")
+        if main_file:
+            self.build_log_append(f"🐍 Detected main file: {main_file}")
+
+    def detect_main_file(self, project_path):
+        """Auto-detect main file in project"""
+        for filename in ["main.py", "game.py", "app.py", "run.py"]:
+            if os.path.exists(os.path.join(project_path, filename)):
+                return filename
+        return None
+
+    def get_python_files(self, project_path):
+        """Get list of Python files in project"""
+        python_files = []
+        try:
+            for file in os.listdir(project_path):
+                if file.endswith('.py'):
+                    python_files.append(file)
+        except:
+            pass
+        return python_files
+
+    def browse_output_folder(self, output_var):
+        """Browse for output folder"""
+        folder = filedialog.askdirectory(title="Select Output Folder")
+        if folder:
+            output_var.set(folder)
+
+    def browse_icon_file(self, icon_var):
+        """Browse for icon file"""
+        file = filedialog.askopenfilename(
+            title="Select Icon File",
+            filetypes=[("Icon files", "*.ico"), ("PNG files", "*.png"), ("All files", "*.*")]
+        )
+        if file:
+            icon_var.set(file)
+
+    def build_log_append(self, message):
+        """Append message to build log"""
+        if hasattr(self, 'build_log'):
+            self.build_log.insert(tk.END, f"{message}\n")
+            self.build_log.see(tk.END)
+            self.root.update()
+
+    def check_build_dependencies(self):
+        """Check build dependencies"""
+        if not PYINSTALLER_AVAILABLE:
+            response = messagebox.askyesno(
+                "Missing PyInstaller",
+                "PyInstaller is required for building games to EXE.\n\nWould you like to install it now?"
+            )
+            if response:
+                self.install_pyinstaller()
+        else:
+            messagebox.showinfo("Dependencies OK", "All build dependencies are available!")
+
+    def check_build_dependencies_dialog(self, parent_window):
+        """Check dependencies with dialog output"""
+        self.build_log_append("🔍 Checking build dependencies...")
+
+        if not PYINSTALLER_AVAILABLE:
+            self.build_log_append("❌ PyInstaller not found")
+            response = messagebox.askyesno(
+                "Missing PyInstaller",
+                "PyInstaller is required for building games.\n\nInstall it now?",
+                parent=parent_window
+            )
+            if response:
+                self.install_pyinstaller_with_log()
+        else:
+            import PyInstaller
+            self.build_log_append(f"✅ PyInstaller found: version {PyInstaller.__version__}")
+
+        try:
+            import pygame
+            self.build_log_append(f"✅ Pygame found: version {pygame.version.ver}")
+        except ImportError:
+            self.build_log_append("⚠️ Pygame not found - may be required for games")
+
+    def install_pyinstaller(self):
+        """Install PyInstaller"""
+        def install():
+            try:
+                subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"], 
+                             check=True, capture_output=True, text=True)
+                messagebox.showinfo("Success", "PyInstaller installed successfully!")
+            except subprocess.CalledProcessError as e:
+                messagebox.showerror("Error", f"Failed to install PyInstaller: {e}")
+
+        threading.Thread(target=install, daemon=True).start()
+
+    def install_pyinstaller_with_log(self):
+        """Install PyInstaller with build log output"""
+        self.build_log_append("📦 Installing PyInstaller...")
+        self.build_progress_bar.start()
+
+        def install():
+            try:
+                result = subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"], 
+                                       check=True, capture_output=True, text=True)
+                self.root.after(0, lambda: self.build_log_append("✅ PyInstaller installed successfully!"))
+                global PYINSTALLER_AVAILABLE
+                PYINSTALLER_AVAILABLE = True
+            except subprocess.CalledProcessError as e:
+                self.root.after(0, lambda: self.build_log_append(f"❌ Installation failed: {e}"))
+            finally:
+                self.root.after(0, lambda: self.build_progress_bar.stop())
+
+        threading.Thread(target=install, daemon=True).start()
+
+    def build_game(self, project_path, main_file, game_name, output_path, icon_file,
+                   include_assets, include_engine, include_scripting, include_utils,
+                   show_console, single_file, compress, parent_window):
+        """Build game to executable"""
+        
+        # Validation
+        if not main_file:
+            messagebox.showerror("Error", "Please select a main file", parent=parent_window)
+            return
+
+        main_path = os.path.join(project_path, main_file)
+        if not os.path.exists(main_path):
+            messagebox.showerror("Error", f"Main file '{main_file}' not found", parent=parent_window)
+            return
+
+        if not game_name.strip():
+            messagebox.showerror("Error", "Please enter a game name", parent=parent_window)
+            return
+
+        if not PYINSTALLER_AVAILABLE:
+            messagebox.showerror("Error", "PyInstaller is not installed", parent=parent_window)
+            return
+
+        # Save build settings
+        self.build_settings.update({
+            "game_name": game_name,
+            "output_path": output_path,
+            "icon_file": icon_file,
+            "include_assets": include_assets,
+            "include_engine": include_engine,
+            "include_scripting": include_scripting,
+            "include_utils": include_utils,
+            "show_console": show_console,
+            "single_file": single_file,
+            "compress": compress
+        })
+
+        self.build_log_append("🚀 Starting build process...")
+        self.build_progress_var.set("Building game...")
+        self.build_progress_bar.start()
+
+        def build_thread():
+            try:
+                # Create output directory
+                os.makedirs(output_path, exist_ok=True)
+
+                # Prepare PyInstaller arguments
+                args = [
+                    sys.executable, "-m", "PyInstaller",
+                    "--clean",
+                    "--distpath", output_path,
+                    "--workpath", os.path.join(output_path, "build"),
+                    "--specpath", project_path,
+                    "--name", game_name
+                ]
+
+                # Build options
+                if single_file:
+                    args.append("--onefile")
+                else:
+                    args.append("--onedir")
+
+                if not show_console:
+                    args.append("--windowed")
+
+                if icon_file and os.path.exists(icon_file):
+                    args.extend(["--icon", icon_file])
+
+                if compress:
+                    args.append("--upx-dir=.")
+
+                # Add data folders
+                if include_assets:
+                    assets_path = os.path.join(project_path, "assets")
+                    if os.path.exists(assets_path):
+                        args.extend(["--add-data", f"{assets_path}{os.pathsep}assets"])
+                        self.root.after(0, lambda: self.build_log_append("✅ Including assets folder"))
+
+                if include_engine:
+                    engine_path = os.path.join(project_path, "engine")
+                    if os.path.exists(engine_path):
+                        args.extend(["--add-data", f"{engine_path}{os.pathsep}engine"])
+                        self.root.after(0, lambda: self.build_log_append("✅ Including Axarion Engine"))
+
+                if include_scripting:
+                    scripting_path = os.path.join(project_path, "scripting")
+                    if os.path.exists(scripting_path):
+                        args.extend(["--add-data", f"{scripting_path}{os.pathsep}scripting"])
+                        self.root.after(0, lambda: self.build_log_append("✅ Including AXScript system"))
+
+                if include_utils:
+                    utils_path = os.path.join(project_path, "utils")
+                    if os.path.exists(utils_path):
+                        args.extend(["--add-data", f"{utils_path}{os.pathsep}utils"])
+                        self.root.after(0, lambda: self.build_log_append("✅ Including utilities"))
+
+                # Hidden imports for common dependencies
+                hidden_imports = ["pygame", "json", "math", "random", "typing", "pathlib"]
+                for imp in hidden_imports:
+                    args.extend(["--hidden-import", imp])
+
+                # Main file
+                args.append(main_path)
+
+                self.root.after(0, lambda: self.build_log_append(f"📋 Running PyInstaller..."))
+
+                # Run PyInstaller
+                result = subprocess.run(args, cwd=project_path, capture_output=True, text=True)
+
+                if result.returncode == 0:
+                    exe_path = os.path.join(output_path, f"{game_name}.exe")
+                    self.root.after(0, lambda: self.build_log_append("✅ Build completed successfully!"))
+                    self.root.after(0, lambda: self.build_log_append(f"📦 Executable: {exe_path}"))
+                    
+                    # Update settings
+                    self.build_settings["last_build_path"] = exe_path
+                    self.save_settings()
+
+                    # Show success dialog
+                    def show_success():
+                        response = messagebox.askyesno(
+                            "Build Complete!",
+                            f"Game successfully built!\n\nExecutable: {exe_path}\n\nOpen output folder?",
+                            parent=parent_window
+                        )
+                        if response:
+                            self.open_folder(output_path)
+
+                    self.root.after(0, show_success)
+                else:
+                    self.root.after(0, lambda: self.build_log_append("❌ Build failed!"))
+                    self.root.after(0, lambda: self.build_log_append(result.stderr))
+                    self.root.after(0, lambda: messagebox.showerror(
+                        "Build Failed", 
+                        f"Build failed with errors:\n{result.stderr[:500]}...",
+                        parent=parent_window
+                    ))
+
+            except Exception as e:
+                self.root.after(0, lambda: self.build_log_append(f"❌ Build error: {e}"))
+                self.root.after(0, lambda: messagebox.showerror(
+                    "Build Error", f"An error occurred during build: {e}", parent=parent_window
+                ))
+            finally:
+                self.root.after(0, lambda: self.build_progress_bar.stop())
+                self.root.after(0, lambda: self.build_progress_var.set("Build complete"))
+
+        threading.Thread(target=build_thread, daemon=True).start()
+
+    def generate_build_spec(self):
+        """Generate PyInstaller spec file for current project"""
+        if not self.file_explorer.current_project:
+            messagebox.showwarning("No Project", "Please open a project first.")
+            return
+
+        project_path = self.file_explorer.current_project
+        main_file = self.detect_main_file(project_path)
+
+        if not main_file:
+            main_file = "main.py"
+
+        self.generate_build_spec_dialog(project_path, main_file, "MyGame", True, True, True, True, "", False)
+
+    def generate_build_spec_dialog(self, project_path, main_file, game_name, 
+                                  include_assets, include_engine, include_scripting, 
+                                  include_utils, icon_file, show_console):
+        """Generate .spec file with given parameters"""
+        
+        spec_content = self.create_spec_content(
+            project_path, main_file, game_name, 
+            include_assets, include_engine, include_scripting, 
+            include_utils, icon_file, show_console
+        )
+
+        spec_file = os.path.join(project_path, f"{game_name}.spec")
+
+        try:
+            with open(spec_file, 'w', encoding='utf-8') as f:
+                f.write(spec_content)
+            
+            self.status_text.config(text=f"Spec file generated: {spec_file}")
+            messagebox.showinfo("Spec Generated", f"PyInstaller specification created:\n{spec_file}")
+            
+            # Ask if user wants to open the spec file
+            if messagebox.askyesno("Open Spec", "Would you like to open the spec file in the editor?"):
+                self.open_file(spec_file)
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not create spec file: {e}")
+
+    def create_spec_content(self, project_path, main_file, game_name, 
+                           include_assets, include_engine, include_scripting, 
+                           include_utils, icon_file, show_console):
+        """Create PyInstaller .spec file content"""
+        
+        # Data files
+        datas = []
+        if include_assets:
+            assets_path = os.path.join(project_path, "assets")
+            if os.path.exists(assets_path):
+                datas.append("('assets', 'assets')")
+
+        if include_engine:
+            engine_path = os.path.join(project_path, "engine")
+            if os.path.exists(engine_path):
+                datas.append("('engine', 'engine')")
+
+        if include_scripting:
+            scripting_path = os.path.join(project_path, "scripting")
+            if os.path.exists(scripting_path):
+                datas.append("('scripting', 'scripting')")
+
+        if include_utils:
+            utils_path = os.path.join(project_path, "utils")
+            if os.path.exists(utils_path):
+                datas.append("('utils', 'utils')")
+
+        datas_str = "[" + ", ".join(datas) + "]" if datas else "[]"
+
+        icon_line = f"icon='{icon_file}'," if icon_file and os.path.exists(icon_file) else ""
+        console_line = "console=True," if show_console else "console=False,"
+
+        spec_content = f"""# -*- mode: python ; coding: utf-8 -*-
+# Axarion Engine Game Package Specification
+# Generated by Axarion Studio Build System
+
+a = Analysis(
+    ['{main_file}'],
+    pathex=[],
+    binaries=[],
+    datas={datas_str},
+    hiddenimports=['pygame', 'json', 'math', 'random', 'typing', 'pathlib', 'threading'],
+    hookspath=[],
+    hooksconfig={{}},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+    optimize=0,
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=None)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.datas,
+    [],
+    name='{game_name}',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    {console_line}
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    {icon_line}
+    version_info=None,
+)
+"""
+        return spec_content
+
+    def open_build_folder(self):
+        """Open build output folder"""
+        if self.build_settings["last_build_path"]:
+            folder = os.path.dirname(self.build_settings["last_build_path"])
+            self.open_folder(folder)
+        elif self.build_settings["output_path"]:
+            self.open_folder(self.build_settings["output_path"])
+        elif self.file_explorer.current_project:
+            build_folder = os.path.join(self.file_explorer.current_project, "dist")
+            if os.path.exists(build_folder):
+                self.open_folder(build_folder)
+            else:
+                messagebox.showinfo("No Build Folder", "No build output folder found.")
+        else:
+            messagebox.showwarning("No Project", "Please open a project first.")
+
+    def clean_build_files(self):
+        """Clean build temporary files"""
+        if not self.file_explorer.current_project:
+            messagebox.showwarning("No Project", "Please open a project first.")
+            return
+
+        project_path = self.file_explorer.current_project
+        
+        # Files and folders to clean
+        to_clean = [
+            os.path.join(project_path, "build"),
+            os.path.join(project_path, "__pycache__"),
+            os.path.join(project_path, "*.spec")
+        ]
+
+        cleaned_items = []
+        for item in to_clean:
+            if "*" in item:
+                # Handle wildcards
+                import glob
+                for file in glob.glob(item):
+                    try:
+                        os.remove(file)
+                        cleaned_items.append(file)
+                    except:
+                        pass
+            elif os.path.exists(item):
+                try:
+                    if os.path.isdir(item):
+                        import shutil
+                        shutil.rmtree(item)
+                    else:
+                        os.remove(item)
+                    cleaned_items.append(item)
+                except:
+                    pass
+
+        if cleaned_items:
+            messagebox.showinfo("Clean Complete", f"Cleaned {len(cleaned_items)} items:\n" + "\n".join(cleaned_items))
+        else:
+            messagebox.showinfo("Already Clean", "No build files found to clean.")
+
+    def open_folder(self, folder_path):
+        """Open folder in system file explorer"""
+        try:
+            if sys.platform == "win32":
+                os.startfile(folder_path)
+            elif sys.platform == "darwin":
+                subprocess.run(["open", folder_path])
+            else:
+                subprocess.run(["xdg-open", folder_path])
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open folder: {e}")
+
+    
+
     def run(self):
         """Start the IDE"""
-        self.status_text.config(text="Axarion Studio ready!")
+        self.status_text.config(text="Axarion Studio Game Build System ready!")
         self.root.mainloop()
 
 if __name__ == "__main__":
