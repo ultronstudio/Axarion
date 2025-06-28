@@ -27,9 +27,14 @@ class AssetManager:
         self.asset_info: Dict[str, Dict[str, Any]] = {}
         
         # Supported formats
-        self.image_formats = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tga']
-        self.sound_formats = ['.wav', '.mp3', '.ogg', '.m4a']
-        self.font_formats = ['.ttf', '.otf']
+        self.image_formats = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tga', '.webp', '.svg']
+        self.sound_formats = ['.wav', '.mp3', '.ogg', '.m4a', '.flac', '.aac']
+        self.font_formats = ['.ttf', '.otf', '.woff', '.woff2']
+        self.video_formats = ['.mp4', '.avi', '.mov', '.mkv']
+        
+        # GIF storage for animated GIFs
+        self.gifs: Dict[str, List[pygame.Surface]] = {}
+        self.gif_durations: Dict[str, List[float]] = {}
         
         # Base paths
         self.assets_path = Path("assets")
@@ -204,6 +209,114 @@ class AssetManager:
             print(f"❌ Failed to load sprite sheet {name}: {e}")
             return False
     
+    def load_gif(self, name: str, file_path: str) -> bool:
+        """Load animated GIF"""
+        try:
+            if not os.path.exists(file_path):
+                print(f"❌ GIF file not found: {file_path}")
+                return False
+            
+            # Load GIF using PIL for better GIF support
+            try:
+                from PIL import Image
+                gif = Image.open(file_path)
+                
+                frames = []
+                durations = []
+                
+                # Extract all frames
+                frame_count = 0
+                while True:
+                    try:
+                        gif.seek(frame_count)
+                        
+                        # Convert PIL image to pygame surface
+                        mode = gif.mode
+                        size = gif.size
+                        data = gif.tobytes()
+                        
+                        # Convert to RGBA if needed
+                        if mode != 'RGBA':
+                            gif_rgba = gif.convert('RGBA')
+                            data = gif_rgba.tobytes()
+                            mode = 'RGBA'
+                        
+                        pygame_surface = pygame.image.fromstring(data, size, mode)
+                        frames.append(pygame_surface.convert_alpha())
+                        
+                        # Get frame duration (in milliseconds, convert to seconds)
+                        duration = gif.info.get('duration', 100) / 1000.0
+                        durations.append(duration)
+                        
+                        frame_count += 1
+                        
+                    except EOFError:
+                        break
+                
+                # Store GIF
+                self.gifs[name] = frames
+                self.gif_durations[name] = durations
+                
+                # Store metadata
+                self.asset_info[name] = {
+                    'type': 'gif',
+                    'path': file_path,
+                    'frame_count': len(frames),
+                    'durations': durations,
+                    'total_duration': sum(durations)
+                }
+                
+                print(f"✅ Loaded GIF: {name} ({len(frames)} frames)")
+                return True
+                
+            except ImportError:
+                print("❌ PIL (Pillow) not available for GIF loading. Install with: pip install Pillow")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Failed to load GIF {name}: {e}")
+            return False
+    
+    def load_texture_atlas(self, name: str, image_path: str, atlas_data: Dict) -> bool:
+        """Load texture atlas with sprite definitions"""
+        try:
+            if not os.path.exists(image_path):
+                print(f"❌ Atlas image not found: {image_path}")
+                return False
+            
+            # Load atlas image
+            atlas_image = pygame.image.load(image_path).convert_alpha()
+            
+            # Extract sprites based on atlas data
+            sprites = {}
+            for sprite_name, sprite_info in atlas_data.items():
+                x = sprite_info.get('x', 0)
+                y = sprite_info.get('y', 0)
+                width = sprite_info.get('width', 32)
+                height = sprite_info.get('height', 32)
+                
+                sprite_surface = atlas_image.subsurface((x, y, width, height))
+                sprites[sprite_name] = sprite_surface.copy()
+            
+            # Store individual sprites
+            for sprite_name, sprite_surface in sprites.items():
+                full_name = f"{name}_{sprite_name}"
+                self.images[full_name] = sprite_surface
+                
+                self.asset_info[full_name] = {
+                    'type': 'atlas_sprite',
+                    'atlas': name,
+                    'sprite': sprite_name,
+                    'size': sprite_surface.get_size()
+                }
+            
+            print(f"✅ Loaded texture atlas: {name} ({len(sprites)} sprites)")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to load texture atlas {name}: {e}")
+            return False
+
     def load_font(self, name: str, file_path: str, size: int = 24) -> bool:
         """Load a font asset"""
         try:
@@ -251,6 +364,24 @@ class AssetManager:
     def get_font(self, name: str) -> Optional[pygame.font.Font]:
         """Get loaded font"""
         return self.fonts.get(name)
+    
+    def get_gif_frame(self, name: str, frame_index: int) -> Optional[pygame.Surface]:
+        """Get specific frame from GIF"""
+        gif = self.gifs.get(name)
+        if gif and 0 <= frame_index < len(gif):
+            return gif[frame_index]
+        return None
+    
+    def get_gif(self, name: str) -> Optional[List[pygame.Surface]]:
+        """Get entire GIF as frame list"""
+        return self.gifs.get(name)
+    
+    def get_gif_frame_duration(self, name: str, frame_index: int) -> float:
+        """Get duration of specific GIF frame"""
+        durations = self.gif_durations.get(name)
+        if durations and 0 <= frame_index < len(durations):
+            return durations[frame_index]
+        return 0.1  # Default duration
     
     def play_sound(self, name: str, loops: int = 0) -> bool:
         """Play a sound"""
@@ -345,6 +476,15 @@ class AssetManager:
             folder_path = self.animations_path / anim_folder
             self.load_animation(anim_folder, str(folder_path))
         
+        # Load GIFs
+        gif_files = []
+        if self.images_path.exists():
+            gif_files = list(self.images_path.glob("*.gif"))
+        
+        for gif_file in gif_files:
+            name = gif_file.stem
+            self.load_gif(name, str(gif_file))
+        
         # Create sample sprites
         self.create_ship_sprites()
         
@@ -360,6 +500,7 @@ class AssetManager:
             'images': list(self.images.keys()),
             'sounds': list(self.sounds.keys()),
             'animations': list(self.animations.keys()),
+            'gifs': list(self.gifs.keys()),
             'fonts': list(self.fonts.keys())
         }
     

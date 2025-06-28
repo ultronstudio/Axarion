@@ -272,12 +272,42 @@ class Renderer:
             border_width = game_object.properties.get("border_width", 0)
             self.draw_rect(x, y, width, height, color, True, rotation, border_width)
             
+        elif game_object.object_type == "square":
+            size = game_object.properties.get("size", 50)
+            border_width = game_object.properties.get("border_width", 0)
+            self.draw_rect(x, y, size, size, color, True, rotation, border_width)
+            
+        elif game_object.object_type == "triangle":
+            size = game_object.properties.get("size", 50)
+            triangle_type = game_object.properties.get("triangle_type", "equilateral")
+            self.draw_triangle(x, y, size, color, triangle_type, rotation)
+            
+        elif game_object.object_type == "ellipse":
+            width = game_object.properties.get("width", 80)
+            height = game_object.properties.get("height", 50)
+            self.draw_ellipse(x, y, width, height, color, rotation)
+            
+        elif game_object.object_type == "polygon":
+            points = game_object.properties.get("points", [(0, 0), (50, 0), (25, 50)])
+            world_points = [(x + px, y + py) for px, py in points]
+            self.draw_polygon(world_points, color, True)
+            
+        elif game_object.object_type == "star":
+            outer_radius = game_object.properties.get("outer_radius", 30)
+            inner_radius = game_object.properties.get("inner_radius", 15)
+            points = game_object.properties.get("points", 5)
+            self.draw_star(x, y, outer_radius, inner_radius, points, color, rotation)
+            
+        elif game_object.object_type == "hexagon":
+            radius = game_object.properties.get("radius", 30)
+            self.draw_hexagon(x, y, radius, color, rotation)
+            
         elif game_object.object_type == "circle":
             radius = game_object.properties.get("radius", 25)
             border_width = game_object.properties.get("border_width", 0)
             self.draw_circle(x, y, radius, color, True, border_width)
             
-        elif game_object.object_type == "sprite" or game_object.object_type == "animated_sprite":
+        elif game_object.object_type in ["sprite", "animated_sprite", "gif"]:
             # Get sprite surface
             sprite_surface = game_object.get_current_sprite()
             
@@ -472,6 +502,124 @@ class Renderer:
         # This is a placeholder for engine compatibility
         pass
     
+    def draw_triangle(self, x: float, y: float, size: float, color: Tuple[int, int, int], 
+                     triangle_type: str = "equilateral", rotation: float = 0):
+        """Draw a triangle"""
+        screen_x = int(x - self.camera_x)
+        screen_y = int(y - self.camera_y)
+        
+        if triangle_type == "equilateral":
+            # Equilateral triangle
+            points = [
+                (screen_x + size/2, screen_y),
+                (screen_x, screen_y + size),
+                (screen_x + size, screen_y + size)
+            ]
+        elif triangle_type == "right":
+            # Right triangle
+            points = [
+                (screen_x, screen_y),
+                (screen_x, screen_y + size),
+                (screen_x + size, screen_y + size)
+            ]
+        else:  # isosceles
+            points = [
+                (screen_x + size/2, screen_y),
+                (screen_x, screen_y + size),
+                (screen_x + size, screen_y + size)
+            ]
+        
+        if rotation != 0:
+            # Apply rotation around center
+            center_x = screen_x + size/2
+            center_y = screen_y + size/2
+            points = self._rotate_points(points, center_x, center_y, rotation)
+        
+        pygame.draw.polygon(self.screen, color, points)
+        self.render_calls += 1
+    
+    def draw_ellipse(self, x: float, y: float, width: float, height: float, 
+                    color: Tuple[int, int, int], rotation: float = 0):
+        """Draw an ellipse"""
+        screen_x = int(x - self.camera_x)
+        screen_y = int(y - self.camera_y)
+        
+        rect = pygame.Rect(screen_x, screen_y, int(width), int(height))
+        
+        if rotation == 0:
+            pygame.draw.ellipse(self.screen, color, rect)
+        else:
+            # For rotated ellipse, we need to create a surface and rotate it
+            ellipse_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+            pygame.draw.ellipse(ellipse_surface, color, (0, 0, width, height))
+            
+            rotated_surface = pygame.transform.rotate(ellipse_surface, -rotation)
+            rotated_rect = rotated_surface.get_rect()
+            rotated_rect.center = (screen_x + width/2, screen_y + height/2)
+            
+            self.screen.blit(rotated_surface, rotated_rect)
+        
+        self.render_calls += 1
+    
+    def draw_star(self, x: float, y: float, outer_radius: float, inner_radius: float, 
+                  points: int, color: Tuple[int, int, int], rotation: float = 0):
+        """Draw a star"""
+        screen_x = int(x - self.camera_x)
+        screen_y = int(y - self.camera_y)
+        
+        star_points = []
+        angle_step = math.pi / points
+        
+        for i in range(points * 2):
+            angle = i * angle_step + math.radians(rotation)
+            radius = outer_radius if i % 2 == 0 else inner_radius
+            px = screen_x + math.cos(angle) * radius
+            py = screen_y + math.sin(angle) * radius
+            star_points.append((px, py))
+        
+        pygame.draw.polygon(self.screen, color, star_points)
+        self.render_calls += 1
+    
+    def draw_hexagon(self, x: float, y: float, radius: float, 
+                    color: Tuple[int, int, int], rotation: float = 0):
+        """Draw a hexagon"""
+        screen_x = int(x - self.camera_x)
+        screen_y = int(y - self.camera_y)
+        
+        points = []
+        for i in range(6):
+            angle = i * math.pi / 3 + math.radians(rotation)
+            px = screen_x + math.cos(angle) * radius
+            py = screen_y + math.sin(angle) * radius
+            points.append((px, py))
+        
+        pygame.draw.polygon(self.screen, color, points)
+        self.render_calls += 1
+    
+    def _rotate_points(self, points: List[Tuple[float, float]], 
+                      center_x: float, center_y: float, rotation: float) -> List[Tuple[float, float]]:
+        """Rotate points around a center"""
+        rotated_points = []
+        cos_r = math.cos(math.radians(rotation))
+        sin_r = math.sin(math.radians(rotation))
+        
+        for px, py in points:
+            # Translate to origin
+            px -= center_x
+            py -= center_y
+            
+            # Rotate
+            new_x = px * cos_r - py * sin_r
+            new_y = px * sin_r + py * cos_r
+            
+            # Translate back
+            new_x += center_x
+            new_y += center_y
+            
+            rotated_points.append((new_x, new_y))
+        
+        return rotated_points
+
     def cleanup(self):
         """Clean up renderer resources"""
         pass

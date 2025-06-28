@@ -121,6 +121,40 @@ class GameObject:
                 "height": 50,
                 "color": (255, 255, 255)
             })
+        elif self.object_type == "square":
+            self.properties.update({
+                "size": 50,
+                "color": (255, 255, 255)
+            })
+        elif self.object_type == "triangle":
+            self.properties.update({
+                "size": 50,
+                "color": (255, 255, 255),
+                "triangle_type": "equilateral"  # equilateral, right, isosceles
+            })
+        elif self.object_type == "ellipse":
+            self.properties.update({
+                "width": 80,
+                "height": 50,
+                "color": (255, 255, 255)
+            })
+        elif self.object_type == "polygon":
+            self.properties.update({
+                "points": [(0, 0), (50, 0), (25, 50)],  # Default triangle
+                "color": (255, 255, 255)
+            })
+        elif self.object_type == "star":
+            self.properties.update({
+                "outer_radius": 30,
+                "inner_radius": 15,
+                "points": 5,
+                "color": (255, 255, 0)
+            })
+        elif self.object_type == "hexagon":
+            self.properties.update({
+                "radius": 30,
+                "color": (255, 255, 255)
+            })
         elif self.object_type == "circle":
             self.properties.update({
                 "radius": 25,
@@ -132,6 +166,13 @@ class GameObject:
                 "height": 32,
                 "color": (100, 150, 255),
                 "texture": None
+            })
+        elif self.object_type == "gif":
+            self.properties.update({
+                "width": 64,
+                "height": 64,
+                "gif_path": None,
+                "frame_duration": 0.1
             })
     
     def update(self, delta_time: float):
@@ -222,8 +263,21 @@ class GameObject:
         """Get bounding box (left, top, right, bottom)"""
         x, y = self.position
         
-        if self.object_type == "rectangle" or self.object_type == "sprite":
+        if self.object_type in ["rectangle", "sprite", "gif"]:
             width = self.properties.get("width", 50)
+            height = self.properties.get("height", 50)
+            return (x, y, x + width, y + height)
+        
+        elif self.object_type == "square":
+            size = self.properties.get("size", 50)
+            return (x, y, x + size, y + size)
+        
+        elif self.object_type == "triangle":
+            size = self.properties.get("size", 50)
+            return (x, y, x + size, y + size)
+        
+        elif self.object_type == "ellipse":
+            width = self.properties.get("width", 80)
             height = self.properties.get("height", 50)
             return (x, y, x + width, y + height)
         
@@ -231,9 +285,21 @@ class GameObject:
             radius = self.properties.get("radius", 25)
             return (x - radius, y - radius, x + radius, y + radius)
         
-        else:
-            # Default rectangle
-            return (x, y, x + 50, y + 50)
+        elif self.object_type in ["star", "hexagon"]:
+            radius = self.properties.get("outer_radius", 30) if self.object_type == "star" else self.properties.get("radius", 30)
+            return (x - radius, y - radius, x + radius, y + radius)
+        
+        elif self.object_type == "polygon":
+            points = self.properties.get("points", [(0, 0), (50, 0), (25, 50)])
+            if points:
+                min_x = min(point[0] for point in points) + x
+                max_x = max(point[0] for point in points) + x
+                min_y = min(point[1] for point in points) + y
+                max_y = max(point[1] for point in points) + y
+                return (min_x, min_y, max_x, max_y)
+        
+        # Default rectangle
+        return (x, y, x + 50, y + 50)
     
     def contains_point(self, px: float, py: float) -> bool:
         """Check if point is inside object"""
@@ -595,11 +661,27 @@ class GameObject:
         """Get current sprite surface"""
         from engine.asset_manager import asset_manager
         
-        if self.animation_name:
+        if self.object_type == "gif" and self.animation_name:
+            return asset_manager.get_gif_frame(self.animation_name, self.current_frame)
+        elif self.animation_name:
             return asset_manager.get_animation_frame(self.animation_name, self.current_frame)
         elif self.sprite_name:
             return asset_manager.get_image(self.sprite_name)
         return None
+    
+    def set_gif(self, gif_name: str, speed: float = 1.0, loop: bool = True):
+        """Set GIF animation for this object"""
+        from engine.asset_manager import asset_manager
+        if asset_manager.get_gif(gif_name):
+            self.animation_name = gif_name
+            self.animation_speed = speed
+            self.animation_loop = loop
+            self.current_frame = 0
+            self.animation_time = 0.0
+            self.animation_playing = True
+            self.object_type = "gif"
+            return True
+        return False
     
     def play_sound(self, sound_name: str):
         """Play sound effect"""
