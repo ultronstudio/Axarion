@@ -1,5 +1,5 @@
 
-# 🎮 Axarion Engine - Next-Generation 2D Game Engine
+# 🎮 Axarion Engine
 
 **The Evolution of VoidRay Engine - Now Better Than Ever!**
 
