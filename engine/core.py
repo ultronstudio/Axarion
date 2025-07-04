@@ -20,7 +20,7 @@ from .game_object import GameObject
 class AxarionEngine:
     """Modern game engine with clean architecture and high performance"""
 
-    def __init__(self, width: int = 800, height: int = 600, title: str = "Axarion Game"):
+    def __init__(self, width: int = 800, height: int = 600, title: str = "Axarion Engine"):
         # Core properties
         self.width = width
         self.height = height
