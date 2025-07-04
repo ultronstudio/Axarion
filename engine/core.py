@@ -15,6 +15,7 @@ from .input_system import input_system
 from .audio_system import audio_system
 from .particle_system import particle_system
 from .animation_system import animation_system
+from .game_object import GameObject
 
 class AxarionEngine:
     """Modern game engine with clean architecture and high performance"""
@@ -104,6 +105,12 @@ class AxarionEngine:
         self.error_log = []
         self.warning_log = []
         self.verbose_logging = False
+        
+        # Fatal error handling
+        self.fatal_error_handler = None
+        self.crash_reports = []
+        self.enable_crash_reporting = True
+        self.last_error_time = 0.0
 
     def initialize(self, surface=None, **config):
         """Initialize the engine with comprehensive system setup"""
@@ -227,54 +234,74 @@ class AxarionEngine:
         self.performance_stats["last_fps_update"] = time.time()
 
     def update(self):
-        """High-performance engine update with proper timing"""
+        """High-performance engine update with proper timing and error protection"""
         if not self.running or not self.initialized:
             return
 
-        import time
-        frame_start = time.perf_counter()
+        try:
+            import time
+            frame_start = time.perf_counter()
 
-        # Calculate delta time with time scale
-        raw_delta = self.clock.tick(self.target_fps) / 1000.0
-        self.delta_time = raw_delta * self.time_scale
-        self.total_time += raw_delta
-        self.frame_count += 1
+            # Calculate delta time with time scale
+            raw_delta = self.clock.tick(self.target_fps) / 1000.0
+            self.delta_time = raw_delta * self.time_scale
+            self.total_time += raw_delta
+            self.frame_count += 1
 
-        # Handle window events first
-        events = pygame.event.get()
-        for event in events:
-            if event.type == pygame.QUIT:
-                self.stop()
-            elif event.type == pygame.WINDOWFOCUSLOST and self.auto_pause:
-                self.pause_game()
-            elif event.type == pygame.WINDOWFOCUSGAINED and self.game_state == "paused":
-                self.resume_game()
+            # Handle window events first
+            events = pygame.event.get()
+            for event in events:
+                if event.type == pygame.QUIT:
+                    self.stop()
+                elif event.type == pygame.WINDOWFOCUSLOST and self.auto_pause:
+                    self.pause_game()
+                elif event.type == pygame.WINDOWFOCUSGAINED and self.game_state == "paused":
+                    self.resume_game()
 
-        # Skip updates if paused
-        if self.game_state == "paused":
-            return
+            # Skip updates if paused
+            if self.game_state == "paused":
+                return
 
-        # Update input system
-        if self.input_manager:
-            self.input_manager.update(events)
+            # Update input system
+            if self.input_manager:
+                try:
+                    self.input_manager.update(events)
+                except Exception as e:
+                    self._log_error(f"Input system update failed: {e}")
 
-        # Update registered systems in priority order
-        self._update_systems(self.delta_time)
+            # Update registered systems in priority order
+            try:
+                self._update_systems(self.delta_time)
+            except Exception as e:
+                self._log_error(f"Systems update failed: {e}")
 
-        # Update current scene
-        if self.current_scene and self.current_scene.active:
-            self.current_scene.update(self.delta_time)
+            # Update current scene
+            if self.current_scene and self.current_scene.active:
+                try:
+                    self.current_scene.update(self.delta_time)
+                except Exception as e:
+                    self._log_error(f"Scene update failed: {e}")
 
-        # Handle scene transitions
-        if self.scene_transition:
-            self._process_scene_transition()
+            # Handle scene transitions
+            if self.scene_transition:
+                try:
+                    self._process_scene_transition()
+                except Exception as e:
+                    self._log_error(f"Scene transition failed: {e}")
 
-        # Process message queue
-        self._process_messages()
+            # Process message queue
+            try:
+                self._process_messages()
+            except Exception as e:
+                self._log_error(f"Message processing failed: {e}")
 
-        # Update performance stats
-        frame_time = time.perf_counter() - frame_start
-        self._update_performance_stats(frame_time)
+            # Update performance stats
+            frame_time = time.perf_counter() - frame_start
+            self._update_performance_stats(frame_time)
+            
+        except Exception as e:
+            self._log_fatal(f"Critical error in engine update: {e}", e)
+            raise
 
     def _update_systems(self, delta_time):
         """Update all registered systems in priority order"""
@@ -369,42 +396,62 @@ class AxarionEngine:
             self.target_fps = 60
 
     def render(self):
-        """High-performance rendering with monitoring"""
+        """High-performance rendering with monitoring and error protection"""
         if not self.renderer or not self.initialized:
             return
 
-        import time
-        render_start = time.perf_counter()
-
         try:
-            # Clear screen
-            self.renderer.clear()
+            import time
+            render_start = time.perf_counter()
 
-            # Render current scene
-            objects_rendered = 0
-            if self.current_scene and self.current_scene.active:
-                objects_rendered = self.current_scene.render(self.renderer)
-
-            # Render particle effects
             try:
-                from .particle_system import particle_system
-                particle_system.render(self.renderer)
-            except ImportError:
-                pass
+                # Clear screen
+                self.renderer.clear()
 
-            # Render debug information if enabled
-            if self.debug_mode:
-                self._render_debug_info()
+                # Render current scene
+                objects_rendered = 0
+                if self.current_scene and self.current_scene.active:
+                    try:
+                        objects_rendered = self.current_scene.render(self.renderer)
+                    except Exception as e:
+                        self._log_error(f"Scene rendering failed: {e}")
+                        objects_rendered = 0
 
-            # Present frame
-            self.renderer.present()
+                # Render particle effects
+                try:
+                    from .particle_system import particle_system
+                    particle_system.render(self.renderer)
+                except ImportError:
+                    pass
+                except Exception as e:
+                    self._log_error(f"Particle rendering failed: {e}")
 
-            # Update render stats
-            self.performance_stats['render_time'] = (time.perf_counter() - render_start) * 1000
-            self.performance_stats['objects_rendered'] = objects_rendered
+                # Render debug information if enabled
+                if self.debug_mode:
+                    try:
+                        self._render_debug_info()
+                    except Exception as e:
+                        self._log_error(f"Debug info rendering failed: {e}")
 
+                # Present frame
+                self.renderer.present()
+
+                # Update render stats
+                self.performance_stats['render_time'] = (time.perf_counter() - render_start) * 1000
+                self.performance_stats['objects_rendered'] = objects_rendered
+
+            except Exception as e:
+                self._log_error(f"Render error: {e}")
+                # Try to recover by clearing screen
+                try:
+                    self.renderer.clear()
+                    self.renderer.present()
+                except:
+                    pass
+                    
         except Exception as e:
-            self._log_error(f"Render error: {e}")
+            self._log_fatal(f"Critical rendering error: {e}", e)
+            raise
 
     def _render_debug_info(self):
         """Render debug information overlay"""
@@ -432,13 +479,26 @@ class AxarionEngine:
         self.render()
 
     def run(self):
-        """Run the main game loop"""
-        self.start()
+        """Run the main game loop with fatal error protection"""
+        try:
+            self.start()
 
-        while self.running:
-            self.run_frame()
+            while self.running:
+                try:
+                    self.run_frame()
+                except KeyboardInterrupt:
+                    print("\n🛑 Game interrupted by user")
+                    self.stop()
+                    break
+                except Exception as e:
+                    self._log_fatal(f"Fatal error in game loop: {e}", e)
+                    self.stop()
+                    break
 
-        self.cleanup()
+        except Exception as e:
+            self._log_fatal(f"Fatal error during engine startup: {e}", e)
+        finally:
+            self.cleanup()
 
     def start(self):
         """Start the engine main loop"""
@@ -660,6 +720,120 @@ class AxarionEngine:
         print(f"[ERROR] {message}")
         self.error_log.append(message)
 
+    def _log_fatal(self, message, exception=None):
+        """Log fatal error and trigger crash handler"""
+        import time
+        import traceback
+        
+        self.last_error_time = time.time()
+        fatal_msg = f"[FATAL ERROR] {message}"
+        
+        if exception:
+            fatal_msg += f"\nException: {str(exception)}"
+            fatal_msg += f"\nTraceback:\n{traceback.format_exc()}"
+        
+        print(f"💀 {fatal_msg}")
+        self.error_log.append(fatal_msg)
+        
+        # Create crash report
+        if self.enable_crash_reporting:
+            self._create_crash_report(message, exception)
+        
+        # Trigger fatal error handler
+        if self.fatal_error_handler:
+            try:
+                self.fatal_error_handler(message, exception)
+            except Exception as e:
+                print(f"[FATAL] Error in fatal error handler: {e}")
+        
+        # Show fatal error dialog
+        self._show_fatal_error_dialog(message, exception)
+
+    def _create_crash_report(self, message, exception):
+        """Create detailed crash report"""
+        import time
+        import traceback
+        import sys
+        import os
+        
+        crash_data = {
+            "timestamp": time.time(),
+            "message": message,
+            "exception": str(exception) if exception else None,
+            "traceback": traceback.format_exc() if exception else None,
+            "engine_version": "0.5",
+            "python_version": sys.version,
+            "platform": sys.platform,
+            "current_scene": self.current_scene.name if self.current_scene else None,
+            "performance_stats": self.performance_stats.copy(),
+            "object_count": len(self.current_scene.objects) if self.current_scene else 0,
+            "memory_usage": self._get_memory_usage()
+        }
+        
+        self.crash_reports.append(crash_data)
+        
+        # Save crash report to file
+        try:
+            import json
+            if not os.path.exists("crash_reports"):
+                os.makedirs("crash_reports")
+            
+            timestamp_str = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            filename = f"crash_reports/crash_{timestamp_str}.json"
+            
+            with open(filename, 'w') as f:
+                json.dump(crash_data, f, indent=2)
+            
+            print(f"💾 Crash report saved to: {filename}")
+        except Exception as e:
+            print(f"Failed to save crash report: {e}")
+
+    def _get_memory_usage(self):
+        """Get current memory usage"""
+        try:
+            import psutil
+            import os
+            process = psutil.Process(os.getpid())
+            return process.memory_info().rss / 1024 / 1024  # MB
+        except:
+            return 0
+
+    def _show_fatal_error_dialog(self, message, exception):
+        """Show fatal error dialog to user"""
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            
+            root = tk.Tk()
+            root.withdraw()  # Hide main window
+            
+            error_text = f"Axarion Engine Fatal Error\n\n{message}"
+            if exception:
+                error_text += f"\n\nException: {str(exception)}"
+            
+            error_text += "\n\nThe engine will now shut down."
+            error_text += "\nCheck crash_reports/ folder for detailed information."
+            
+            messagebox.showerror("Fatal Error - Axarion Engine", error_text)
+            root.destroy()
+        except Exception as e:
+            print(f"Failed to show error dialog: {e}")
+            # Fallback to console output
+            print("=" * 60)
+            print("🚨 FATAL ERROR - AXARION ENGINE 🚨")
+            print("=" * 60)
+            print(f"Error: {message}")
+            if exception:
+                print(f"Exception: {str(exception)}")
+            print("=" * 60)
+            print("The engine will now shut down.")
+            print("Check crash_reports/ folder for detailed information.")
+            print("=" * 60)
+
+    def set_fatal_error_handler(self, handler):
+        """Set custom fatal error handler"""
+        self.fatal_error_handler = handler
+
     # Additional engine management methods
     def register_system(self, system, priority=0):
         """Register a custom system with the engine"""
@@ -705,6 +879,43 @@ class AxarionEngine:
         if self.renderer:
             self.renderer.debug_mode = self.debug_mode
         return self.debug_mode
+
+    def emergency_shutdown(self, reason="Unknown error"):
+        """Emergency shutdown with error reporting"""
+        self._log_fatal(f"Emergency shutdown: {reason}")
+        
+        try:
+            # Quick cleanup
+            self.running = False
+            
+            # Save any critical data
+            if hasattr(self, 'current_scene') and self.current_scene:
+                try:
+                    self.save_project("emergency_save.json")
+                    print("💾 Emergency save completed")
+                except:
+                    pass
+            
+            # Force cleanup
+            pygame.quit()
+            
+        except Exception as e:
+            print(f"Error during emergency shutdown: {e}")
+
+    def get_crash_reports(self):
+        """Get all crash reports"""
+        return self.crash_reports.copy()
+
+    def clear_crash_reports(self):
+        """Clear crash reports"""
+        self.crash_reports.clear()
+
+    def is_engine_healthy(self):
+        """Check if engine is in healthy state"""
+        return (self.initialized and 
+                self.renderer is not None and 
+                self.physics is not None and
+                len(self.error_log) < 100)  # Too many errors indicate problems
 
     # UNLIMITED GAME DEVELOPMENT FEATURES
 
@@ -774,9 +985,15 @@ class AxarionEngine:
 
     def enable_level_editor(self):
         """Enable in-game level editor"""
-        from .level_editor import LevelEditor
-        self.level_editor = LevelEditor(self)
-        return self.level_editor
+        try:
+            from .level_editor import LevelEditor
+            self.level_editor = LevelEditor(self)
+            return self.level_editor
+        except ImportError:
+            self._log_warning("Level editor module not available")
+            # Create a simple placeholder level editor
+            self.level_editor = {"enabled": True, "mode": "basic"}
+            return self.level_editor
 
     def add_post_processing(self, effect_name: str, parameters: Dict):
         """Add post-processing effects"""
