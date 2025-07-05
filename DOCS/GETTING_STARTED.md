@@ -67,10 +67,20 @@ Now let's make your own game! Create a new file called `my_first_game.py`:
 ```python
 from engine.core import AxarionEngine
 from engine.game_object import GameObject
+import pygame
+
+# Initialize pygame first
+pygame.init()
 
 # Create the game engine
-engine = AxarionEngine(800, 600)
-engine.initialize()
+engine = AxarionEngine(800, 600, "My First Game")
+
+# Initialize with error handling
+try:
+    if not engine.initialize():
+        print("⚠️ Engine didn't initialize correctly, but continuing...")
+except Exception as e:
+    print(f"⚠️ Initialization error: {e}")
 
 # Create a scene
 scene = engine.create_scene("My First Game")
@@ -82,6 +92,7 @@ player.position = (100, 100)
 player.set_property("width", 40)
 player.set_property("height", 40)
 player.set_property("color", (100, 200, 255))
+player.is_static = True
 
 # Add simple movement with Python
 class PlayerController:
@@ -90,15 +101,16 @@ class PlayerController:
         self.speed = 200
     
     def update(self, keys, delta_time):
+        x, y = self.player.position
         # Move with arrow keys
-        if keys.get("ArrowLeft"):
-            self.player.position = (self.player.position[0] - self.speed * delta_time, self.player.position[1])
-        if keys.get("ArrowRight"):
-            self.player.position = (self.player.position[0] + self.speed * delta_time, self.player.position[1])
-        if keys.get("ArrowUp"):
-            self.player.position = (self.player.position[0], self.player.position[1] - self.speed * delta_time)
-        if keys.get("ArrowDown"):
-            self.player.position = (self.player.position[0], self.player.position[1] + self.speed * delta_time)
+        if keys[pygame.K_LEFT]:
+            self.player.position = (x - self.speed * delta_time, y)
+        if keys[pygame.K_RIGHT]:
+            self.player.position = (x + self.speed * delta_time, y)
+        if keys[pygame.K_UP]:
+            self.player.position = (x, y - self.speed * delta_time)
+        if keys[pygame.K_DOWN]:
+            self.player.position = (x, y + self.speed * delta_time)
 
 # Create controller
 controller = PlayerController(player)
@@ -107,19 +119,33 @@ controller = PlayerController(player)
 scene.add_object(player)
 
 # Game loop
-import pygame
 clock = pygame.time.Clock()
 
 while engine.running:
     delta_time = clock.tick(60) / 1000.0
-    keys = engine.get_keys()
     
-    # Update controller
+    # Handle events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            engine.stop()
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                engine.stop()
+    
+    # Get keys and update controller
+    keys = pygame.key.get_pressed()
     controller.update(keys, delta_time)
     
-    # Update engine
-    engine.update(delta_time)
-    engine.render()
+    # Update scene
+    if engine.current_scene:
+        engine.current_scene.update(delta_time)
+    
+    # Render
+    if engine.renderer:
+        engine.renderer.clear()
+        if engine.current_scene:
+            engine.current_scene.render(engine.renderer)
+        engine.renderer.present()
 
 engine.cleanup()
 ```
