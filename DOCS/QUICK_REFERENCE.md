@@ -1,5 +1,4 @@
 
-
 # 🚀 Axarion Engine Quick Reference
 
 **Next-Generation Game Engine - Evolved from VoidRay**
@@ -44,6 +43,131 @@ obj.position = (100, 100)
 obj.set_property("width", 40)
 obj.set_property("height", 40)
 obj.set_property("color", (255, 100, 100))
+scene.add_object(obj)
+
+# Game loop
+clock = pygame.time.Clock()
+while engine.running:
+    delta_time = clock.tick(60) / 1000.0
+    
+    # Handle events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            engine.stop()
+    
+    # Input handling (choose your style)
+    keys = pygame.key.get_pressed()  # Pygame style
+    # OR use: engine.input.is_key_pressed("w")  # Axarion style
+    
+    # Update and render
+    if engine.current_scene:
+        engine.current_scene.update(delta_time)
+    if engine.renderer:
+        engine.renderer.clear()
+        if engine.current_scene:
+            engine.current_scene.render(engine.renderer)
+        engine.renderer.present()
+
+engine.cleanup()
+```
+
+## 🎹 Input Handling - Two Approaches
+
+### **Pygame Style (Direct)**
+```python
+# Get keyboard state
+keys = pygame.key.get_pressed()
+
+# Basic controls
+if keys[pygame.K_w] or keys[pygame.K_UP]:
+    move_up()
+if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+    move_down()
+if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+    move_left()
+if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+    move_right()
+if keys[pygame.K_SPACE]:
+    shoot()
+
+# Events for one-time actions
+for event in pygame.event.get():
+    if event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_SPACE:
+            jump()  # Only once per press
+```
+
+### **Axarion Input System (Advanced)**
+```python
+# Import input system
+from engine.input_system import input_system
+
+# Key checking
+if input_system.is_key_pressed("w"):
+    move_up()
+if input_system.is_key_just_pressed("space"):  # Only once
+    jump()
+if input_system.is_key_just_released("space"):  # On release
+    stop_charging()
+
+# Helper functions for movement
+movement = input_system.get_movement_vector()  # (-1,1) to (1,1)
+player.position = (x + movement[0] * speed, y + movement[1] * speed)
+
+# Mouse
+if input_system.is_mouse_clicked(0):  # Left button
+    shoot_at_mouse()
+mouse_pos = input_system.get_mouse_position()
+
+# Axis for analog control
+horizontal = input_system.get_axis("horizontal")  # -1 to 1
+vertical = input_system.get_axis("vertical")      # -1 to 1
+```
+
+### **Combining Both Approaches**
+```python
+def handle_input(keys, delta_time):
+    # Pygame for basic movement
+    if keys[pygame.K_w]:
+        move_up(delta_time)
+    
+    # Axarion for advanced actions
+    if input_system.is_key_just_pressed("space"):
+        jump()  # Only once per press
+    
+    if input_system.is_mouse_clicked(0):
+        shoot_at_mouse()
+    
+    # Helper functions
+    movement = input_system.get_movement_vector()
+    if movement != (0, 0):
+        smooth_move(movement, delta_time)
+```
+
+## 🎯 Complete Player Movement Example
+
+```python
+from engine.core import AxarionEngine
+from engine.game_object import GameObject
+import pygame
+
+# Initialize pygame
+pygame.init()
+
+# Create engine
+engine = AxarionEngine(800, 600, "Player Movement Demo")
+engine.initialize()
+
+# Create scene
+scene = engine.create_scene("Game")
+engine.current_scene = scene
+
+# Create player
+obj = GameObject("Player", "rectangle")
+obj.position = (100, 100)
+obj.set_property("width", 40)
+obj.set_property("height", 40)
+obj.set_property("color", (100, 200, 255))
 obj.is_static = True
 
 # Add behavior
@@ -261,7 +385,7 @@ def check_rect_collision(obj1, obj2):
 
 ### Using Tags for Groups
 ```python
-# Python - set up tags
+# Set up tags
 enemy.add_tag("enemy")
 pickup.add_tag("collectible")
 
@@ -291,7 +415,7 @@ obj.set_property("visible", False)
 
 ### Using Sprites
 ```python
-# Python - load and set sprite
+# Load and set sprite
 from engine.asset_manager import asset_manager
 asset_manager.load_all_assets()
 
@@ -301,7 +425,7 @@ player.set_sprite("ship")  # Uses ship.png
 
 ### Animations
 ```python
-# Python - set animation
+# Set animation
 player = GameObject("Player", "animated_sprite")
 player.set_animation("explosion", speed=2.0, loop=True)
 
@@ -397,7 +521,7 @@ obj.position = (100, 200)
 
 ### Tags and Organization
 ```python
-# Python - organize with tags
+# Organize with tags
 player.add_tag("player")
 enemy.add_tag("enemy")
 enemy.add_tag("flying")
@@ -561,4 +685,3 @@ While game is running:
 - Check console output for errors and print statements
 
 This reference covers 90% of what you need to make games with Axarion Engine. For advanced features, see the full documentation in `DOCS.md`!
-
