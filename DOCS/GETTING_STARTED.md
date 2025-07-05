@@ -1,5 +1,4 @@
 
-
 # 🚀 Getting Started with Axarion Engine
 
 Welcome to Axarion Engine - the next-generation successor to VoidRay Engine! This guide will help you create your first game in just a few minutes, even if you're completely new to programming or game development.
@@ -211,6 +210,55 @@ boss_scene = engine.create_scene("Boss Fight")
 engine.current_scene = game_scene
 ```
 
+## 🎮 Input Handling - Two Approaches Available!
+
+Axarion Engine offers **two input handling approaches** - you can use either direct pygame access or the advanced Axarion input system:
+
+### **Pygame Style (Direct Access)**
+```python
+# This approach is simple and straightforward
+keys = pygame.key.get_pressed()
+if keys[pygame.K_w] or keys[pygame.K_UP]:
+    player.position = (x, y - speed * delta_time)
+if keys[pygame.K_SPACE]:
+    shoot()
+```
+
+### **Axarion Input System (Advanced)**
+```python
+# Alternatively, use the engine input system
+if engine.input.is_key_pressed("w"):
+    player.position = (x, y - speed * delta_time)
+if engine.input.is_key_just_pressed("space"):  # Only once per press
+    shoot()
+
+# Or helper functions
+from engine.input_system import key_pressed
+if key_pressed("space"):
+    shoot()
+
+# Advanced features
+movement = engine.input.get_movement_vector()  # Returns (-1,1) to (1,1)
+if engine.input.is_mouse_clicked(0):  # Left mouse button
+    shoot_at_mouse()
+```
+
+### **Combining Both Approaches**
+```python
+def update_player(keys, delta_time):
+    # Pygame for basic movement
+    if keys[pygame.K_w]:
+        move_up()
+    
+    # Axarion for advanced actions
+    if engine.input.is_key_just_pressed("space"):  # Only once
+        jump()
+    
+    # Helper functions for smooth movement
+    movement = engine.input.get_movement_vector()
+    player.position = (x + movement[0] * speed, y + movement[1] * speed)
+```
+
 ## 🔥 What Makes Axarion Special?
 
 ### Revolutionary Improvements Over VoidRay:
@@ -220,6 +268,7 @@ engine.current_scene = game_scene
 - **Professional Audio**: Complete sound system (VoidRay had basic audio only)
 - **Visual Effects**: Built-in particle systems for explosions and effects
 - **Smart Asset Management**: Automatic loading and optimization
+- **Dual Input System**: Choose between pygame or Axarion input handling
 
 #### ⚡ **Performance Revolution**
 - **3x Faster Rendering**: Optimized graphics pipeline with batching
@@ -232,12 +281,13 @@ engine.current_scene = game_scene
 - **Advanced Debug Tools**: Visual collision bounds, performance graphs
 - **Pure Python**: Clean, readable code without custom scripting languages
 - **Comprehensive Documentation**: Complete guides and tutorials
+- **Flexible Input**: Use pygame directly or advanced Axarion input system
 
 #### 🎨 **Modern Features**
 - **Multi-Scene Management**: Organize games into levels and menus
 - **Animation System**: Smooth frame-by-frame sprite animations
 - **Particle Effects**: Professional-quality visual effects
-- **Input Handling**: Responsive keyboard and mouse input
+- **Smart Input Handling**: Frame-based tracking, mouse support, helper functions
 
 ## 🎯 Your First Real Game - Collect the Coins!
 
@@ -636,4 +686,3 @@ You now know enough to start creating games with Axarion Engine - the most advan
 ---
 
 *Axarion Engine - The Evolution of VoidRay | Built for the Next Generation of Game Developers*
-
