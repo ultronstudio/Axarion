@@ -1,4 +1,5 @@
 
+
 # 🚀 Axarion Engine Quick Reference
 
 **Next-Generation Game Engine - Evolved from VoidRay**
@@ -18,6 +19,7 @@ This is a handy reference for common tasks and code patterns in Axarion Engine. 
 ```python
 from engine.core import AxarionEngine
 from engine.game_object import GameObject
+import pygame
 
 # Create engine
 engine = AxarionEngine(800, 600)
@@ -32,15 +34,29 @@ obj = GameObject("Player", "rectangle")
 obj.position = (100, 100)
 obj.set_property("color", (255, 100, 100))
 
-# Add script
-obj.script_code = """
-function update() {
-    // Your game logic here
-}
-"""
+# Add behavior
+class PlayerController:
+    def __init__(self, player):
+        self.player = player
+    
+    def update(self, keys, delta_time):
+        # Your game logic here
+        pass
 
+controller = PlayerController(obj)
 scene.add_object(obj)
-engine.run()
+
+# Game loop
+clock = pygame.time.Clock()
+while engine.running:
+    delta_time = clock.tick(60) / 1000.0
+    keys = engine.get_keys()
+    
+    controller.update(keys, delta_time)
+    engine.update(delta_time)
+    engine.render()
+
+engine.cleanup()
 ```
 
 ## 🎯 GameObject Types
@@ -55,100 +71,158 @@ engine.run()
 ## 🕹️ Input Controls
 
 ### Keyboard Input
-```javascript
-// Check if key is currently pressed
-if (keyPressed("Space")) { /* ... */ }
-if (keyPressed("ArrowLeft")) { /* ... */ }
-if (keyPressed("w")) { /* ... */ }
+```python
+# Check if key is currently pressed
+keys = engine.get_keys()
+if keys.get("Space"):
+    # Handle space key
+    pass
 
-// Check if key was just pressed this frame
-if (keyJustPressed("Enter")) { /* ... */ }
+if keys.get("ArrowLeft"):
+    # Handle left arrow
+    pass
 
-// Movement pattern
-var speed = 200;
-if (keyPressed("ArrowLeft")) move(-speed * 0.016, 0);
-if (keyPressed("ArrowRight")) move(speed * 0.016, 0);
-if (keyPressed("ArrowUp")) move(0, -speed * 0.016);
-if (keyPressed("ArrowDown")) move(0, speed * 0.016);
+# Movement pattern
+class Movement:
+    def __init__(self, player):
+        self.player = player
+        self.speed = 200
+    
+    def update(self, keys, delta_time):
+        x, y = self.player.position
+        if keys.get("ArrowLeft"):
+            x -= self.speed * delta_time
+        if keys.get("ArrowRight"):
+            x += self.speed * delta_time
+        if keys.get("ArrowUp"):
+            y -= self.speed * delta_time
+        if keys.get("ArrowDown"):
+            y += self.speed * delta_time
+        self.player.position = (x, y)
 ```
 
 ### Mouse Input
-```javascript
-// Check mouse buttons
-if (mousePressed(0)) { /* left button */ }
-if (mousePressed(1)) { /* right button */ }
-if (mouseClicked(0)) { /* just clicked */ }
+```python
+# Check mouse buttons
+mouse = engine.get_mouse()
+if mouse.get("left_button"):
+    # Left button pressed
+    pass
 
-// Get mouse position
-var mouse = getMousePos();
-print("Mouse at: " + mouse.x + ", " + mouse.y);
+if mouse.get("right_button"):
+    # Right button pressed
+    pass
+
+# Get mouse position
+mouse_pos = engine.get_mouse_pos()
+print(f"Mouse at: {mouse_pos[0]}, {mouse_pos[1]}")
 ```
 
 ## 🏃 Movement and Physics
 
 ### Basic Movement
-```javascript
-// Direct movement
-move(x, y);                    // Move by offset
-setProperty("position", {x: 100, y: 200});  // Set exact position
+```python
+# Direct movement
+player.position = (x, y)  # Set exact position
 
-// Velocity-based
-setProperty("velocity", {x: 100, y: 0});     // Set velocity
-applyForce(200, 0);            // Apply force (physics)
+# Velocity-based movement
+class VelocityMovement:
+    def __init__(self, obj):
+        self.obj = obj
+        self.velocity = [0, 0]
+    
+    def update(self, delta_time):
+        x, y = self.obj.position
+        x += self.velocity[0] * delta_time
+        y += self.velocity[1] * delta_time
+        self.obj.position = (x, y)
+    
+    def set_velocity(self, vx, vy):
+        self.velocity = [vx, vy]
 ```
 
 ### Platformer Movement
-```javascript
-var speed = 200;
-var jumpForce = 400;
-
-function update() {
-    // Horizontal movement
-    if (keyPressed("ArrowLeft")) {
-        applyForce(-speed * 2, 0);
-    }
-    if (keyPressed("ArrowRight")) {
-        applyForce(speed * 2, 0);
-    }
+```python
+class PlatformerController:
+    def __init__(self, player):
+        self.player = player
+        self.speed = 200
+        self.jump_force = 400
+        self.velocity_y = 0
+        self.gravity = 980
+        self.on_ground = False
     
-    // Jumping
-    if (keyPressed("Space") && isOnGround()) {
-        var vel = getProperty("velocity");
-        setProperty("velocity", {x: vel.x, y: -jumpForce});
-    }
-}
+    def update(self, keys, delta_time):
+        x, y = self.player.position
+        
+        # Horizontal movement
+        if keys.get("ArrowLeft"):
+            x -= self.speed * delta_time
+        if keys.get("ArrowRight"):
+            x += self.speed * delta_time
+        
+        # Jumping
+        if keys.get("Space") and self.on_ground:
+            self.velocity_y = -self.jump_force
+            self.on_ground = False
+        
+        # Apply gravity
+        self.velocity_y += self.gravity * delta_time
+        y += self.velocity_y * delta_time
+        
+        # Ground collision (simplified)
+        if y > 500:  # Ground level
+            y = 500
+            self.velocity_y = 0
+            self.on_ground = True
+        
+        self.player.position = (x, y)
 ```
 
 ### Top-Down Movement
-```javascript
-var speed = 150;
-
-function update() {
-    var dx = 0, dy = 0;
+```python
+class TopDownController:
+    def __init__(self, player):
+        self.player = player
+        self.speed = 150
     
-    if (keyPressed("w")) dy = -1;
-    if (keyPressed("s")) dy = 1;
-    if (keyPressed("a")) dx = -1;
-    if (keyPressed("d")) dx = 1;
-    
-    move(dx * speed * 0.016, dy * speed * 0.016);
-}
+    def update(self, keys, delta_time):
+        x, y = self.player.position
+        
+        if keys.get("w"):
+            y -= self.speed * delta_time
+        if keys.get("s"):
+            y += self.speed * delta_time
+        if keys.get("a"):
+            x -= self.speed * delta_time
+        if keys.get("d"):
+            x += self.speed * delta_time
+        
+        self.player.position = (x, y)
 ```
 
 ## 💥 Collision Detection
 
 ### Basic Collision
-```javascript
-// Check collision with specific object
-if (isCollidingWith("Enemy")) {
-    print("Hit enemy!");
-}
+```python
+def check_collision(obj1, obj2):
+    """Check collision between two objects"""
+    x1, y1 = obj1.position
+    x2, y2 = obj2.position
+    
+    # Circle collision
+    distance = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+    return distance < 30  # Adjust based on object sizes
 
-// Get all colliding objects
-var colliding = getCollidingObjects();
-for (var i = 0; i < colliding.length; i++) {
-    print("Colliding with: " + colliding[i]);
-}
+def check_rect_collision(obj1, obj2):
+    """Check rectangular collision"""
+    x1, y1 = obj1.position
+    w1, h1 = obj1.get_property("width"), obj1.get_property("height")
+    x2, y2 = obj2.position
+    w2, h2 = obj2.get_property("width"), obj2.get_property("height")
+    
+    return (x1 < x2 + w2 and x1 + w1 > x2 and 
+            y1 < y2 + h2 and y1 + h1 > y2)
 ```
 
 ### Using Tags for Groups
@@ -156,33 +230,29 @@ for (var i = 0; i < colliding.length; i++) {
 # Python - set up tags
 enemy.add_tag("enemy")
 pickup.add_tag("collectible")
-```
 
-```javascript
-// AXScript - check collisions by tag
-var enemies = findObjectsByTag("enemy");
-for (var i = 0; i < enemies.length; i++) {
-    if (isCollidingWith(enemies[i].name)) {
-        print("Hit enemy!");
-    }
-}
+# Check collisions by tag
+enemies = scene.find_objects_by_tag("enemy")
+for enemy in enemies:
+    if check_collision(player, enemy):
+        print("Hit enemy!")
 ```
 
 ## 🎨 Visual Properties
 
 ### Colors and Appearance
-```javascript
-// Set color (RGB values 0-255)
-setProperty("color", {r: 255, g: 100, b: 50});
+```python
+# Set color (RGB values 0-255)
+obj.set_property("color", (255, 100, 50))
 
-// Set size
-setProperty("width", 50);
-setProperty("height", 30);
-setProperty("radius", 25);  // For circles
+# Set size
+obj.set_property("width", 50)
+obj.set_property("height", 30)
+obj.set_property("radius", 25)  # For circles
 
-// Visibility
-setProperty("visible", true);
-setProperty("visible", false);
+# Visibility
+obj.set_property("visible", True)
+obj.set_property("visible", False)
 ```
 
 ### Using Sprites
@@ -200,93 +270,95 @@ player.set_sprite("ship")  # Uses ship.png
 # Python - set animation
 player = GameObject("Player", "animated_sprite")
 player.set_animation("explosion", speed=2.0, loop=True)
-```
 
-```javascript
-// AXScript - control animations
-playAnimation("walk");
-pauseAnimation();
-resumeAnimation();
-stopAnimation();
+# Control animations
+player.play_animation("walk")
+player.pause_animation()
+player.resume_animation()
+player.stop_animation()
 ```
 
 ## 🔊 Audio
 
 ### Sound Effects
-```javascript
-// Play sound once
-playSound("jump");
-playSound("explosion");
+```python
+from engine.audio_system import AudioSystem
+audio = AudioSystem()
 
-// Play with loops (-1 = infinite)
-playSound("background_music", -1);
+# Play sound once
+audio.play_sound("jump")
+audio.play_sound("explosion")
+
+# Play with loops
+audio.play_sound("background_music", loop=True)
 ```
 
 ### Music
-```javascript
-// Background music
-playMusic("level_music.mp3");
-stopMusic();
-setVolume(0.7, 0.5);  // music, sound effects
+```python
+# Background music
+audio.play_music("level_music.mp3")
+audio.stop_music()
+audio.set_volume(0.7)  # 70% volume
 ```
 
 ## 🧮 Math and Utilities
 
 ### Common Math Functions
-```javascript
-// Basic math
-var result = sin(angle);
-var result = cos(angle);
-var result = sqrt(16);        // = 4
-var result = abs(-5);         // = 5
+```python
+import math
 
-// Utility functions
-var dist = distance(x1, y1, x2, y2);
-var clamped = clamp(value, 0, 100);
-var mixed = lerp(start, end, 0.5);  // 50% between start and end
-var rand = random();           // 0.0 to 1.0
+# Basic math
+result = math.sin(angle)
+result = math.cos(angle)
+result = math.sqrt(16)        # = 4
+result = abs(-5)              # = 5
 
-// Rounding
-var down = floor(3.7);        // = 3
-var up = ceil(3.2);           // = 4
-var nearest = round(3.6);     // = 4
-```
+# Utility functions
+def distance(x1, y1, x2, y2):
+    return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
-### Random Values
-```javascript
-// Random float 0-1
-var rand = random();
+def clamp(value, min_val, max_val):
+    return max(min_val, min(value, max_val))
 
-// Random integer range
-var randInt = floor(random() * 10);  // 0-9
-var randRange = floor(random() * 5) + 10;  // 10-14
+def lerp(start, end, t):
+    return start + (end - start) * t
+
+# Random values
+import random
+rand = random.random()         # 0.0 to 1.0
+rand_int = random.randint(1, 10)  # 1 to 10
 ```
 
 ## 🎯 Game Object Management
 
 ### Creating Objects Dynamically
-```javascript
-// Create new object from script
-var bulletId = instantiate("circle", x, y);
+```python
+# Create new object
+def create_bullet(x, y):
+    bullet = GameObject("Bullet", "circle")
+    bullet.position = (x, y)
+    bullet.set_property("radius", 3)
+    bullet.set_property("color", (255, 255, 0))
+    scene.add_object(bullet)
+    return bullet
 
-// Find objects
-var player = findObjectByName("Player");
-var enemies = findObjectsByTag("enemy");
+# Find objects
+player = scene.find_object_by_name("Player")
+enemies = scene.find_objects_by_tag("enemy")
 
-// Destroy objects
-destroy();  // Destroy current object
+# Destroy objects
+scene.remove_object(obj)
 ```
 
 ### Object Properties
-```javascript
-// Get/set custom properties
-setProperty("health", 100);
-var health = getProperty("health");
+```python
+# Get/set custom properties
+obj.set_property("health", 100)
+health = obj.get_property("health")
 
-// Position and velocity
-var pos = getProperty("position");
-var vel = getProperty("velocity");
-setProperty("position", {x: 100, y: 200});
+# Position and other properties
+pos = obj.position
+obj.position = (100, 200)
 ```
 
 ### Tags and Organization
@@ -299,105 +371,127 @@ enemy.add_tag("flying")
 # Check tags
 if enemy.has_tag("flying"):
     print("This enemy can fly!")
-```
 
-```javascript
-// AXScript - work with tags
-addTag("powerup");
-var hasTag = hasTag("enemy");
-var tagged = findObjectsByTag("collectible");
+# Find by tags
+tagged = scene.find_objects_by_tag("collectible")
 ```
 
 ## ⚡ Advanced Patterns
 
 ### Simple AI - Follow Player
-```javascript
-function update() {
-    var player = findObjectByName("Player");
-    if (player) {
-        var playerPos = player.getProperty("position");
-        var myPos = getProperty("position");
+```python
+class EnemyAI:
+    def __init__(self, enemy, player):
+        self.enemy = enemy
+        self.player = player
+        self.speed = 100
+    
+    def update(self, delta_time):
+        # Move towards player
+        enemy_x, enemy_y = self.enemy.position
+        player_x, player_y = self.player.position
         
-        // Move towards player
-        moveTowards(playerPos.x, playerPos.y, 100);
-    }
-}
+        # Calculate direction
+        dx = player_x - enemy_x
+        dy = player_y - enemy_y
+        distance = math.sqrt(dx*dx + dy*dy)
+        
+        if distance > 0:
+            # Normalize and move
+            dx /= distance
+            dy /= distance
+            
+            new_x = enemy_x + dx * self.speed * delta_time
+            new_y = enemy_y + dy * self.speed * delta_time
+            self.enemy.position = (new_x, new_y)
 ```
 
 ### Health System
-```javascript
-var maxHealth = 100;
-var currentHealth = maxHealth;
-
-function takeDamage(amount) {
-    currentHealth -= amount;
-    if (currentHealth <= 0) {
-        die();
-    }
-}
-
-function die() {
-    // Death logic
-    createExplosion(pos.x, pos.y);
-    destroy();
-}
+```python
+class HealthSystem:
+    def __init__(self, obj, max_health=100):
+        self.obj = obj
+        self.max_health = max_health
+        self.current_health = max_health
+    
+    def take_damage(self, amount):
+        self.current_health -= amount
+        if self.current_health <= 0:
+            self.die()
+    
+    def heal(self, amount):
+        self.current_health = min(self.max_health, self.current_health + amount)
+    
+    def die(self):
+        # Death logic
+        print(f"{self.obj.name} destroyed!")
+        # Remove from scene, create explosion, etc.
 ```
 
 ### Simple Shooting
-```javascript
-var shootCooldown = 0;
-
-function update() {
-    shootCooldown -= 0.016;  // Decrease by delta time
+```python
+class ShootingSystem:
+    def __init__(self, obj, scene):
+        self.obj = obj
+        self.scene = scene
+        self.shoot_cooldown = 0
     
-    if (keyPressed("Space") && shootCooldown <= 0) {
-        shoot();
-        shootCooldown = 0.3;  // 0.3 seconds between shots
-    }
-}
-
-function shoot() {
-    var pos = getProperty("position");
-    var bulletId = instantiate("circle", pos.x + 16, pos.y);
-    // Set bullet properties via engine
-}
+    def update(self, keys, delta_time):
+        self.shoot_cooldown -= delta_time
+        
+        if keys.get("Space") and self.shoot_cooldown <= 0:
+            self.shoot()
+            self.shoot_cooldown = 0.3  # 0.3 seconds between shots
+    
+    def shoot(self):
+        x, y = self.obj.position
+        bullet = GameObject("Bullet", "circle")
+        bullet.position = (x + 16, y)
+        bullet.set_property("radius", 3)
+        bullet.set_property("color", (255, 255, 0))
+        self.scene.add_object(bullet)
 ```
 
 ### Collectible Items
-```javascript
-// For collectible objects
-function update() {
-    if (isCollidingWith("Player")) {
-        // Give player points/power/etc
-        playSound("pickup");
-        destroy();
-    }
-}
+```python
+class CollectibleSystem:
+    def __init__(self, scene):
+        self.scene = scene
+        self.score = 0
+    
+    def update(self, player):
+        collectibles = self.scene.find_objects_by_tag("collectible")
+        for item in collectibles:
+            if check_collision(player, item):
+                # Give player points/power/etc
+                self.score += 10
+                self.scene.remove_object(item)
+                print(f"Score: {self.score}")
 ```
 
 ## 🎮 Game Genres Quick Start
 
 ### Platformer Essentials
-- Use `applyForce()` for movement
-- Check `isOnGround()` before jumping
-- Set gravity: `scene.set_gravity(0, 400)`
-- Create static platforms with `is_static = True`
+- Use physics for movement with gravity
+- Check ground collision before jumping
+- Create static platforms
+- Implement moving platforms
 
 ### Top-Down Shooter
 - 8-directional movement with WASD
-- Use `createBullet(targetX, targetY)` for projectiles
+- Bullet spawning and movement
 - Implement cooldown timers for shooting
 - Use tags for different bullet types
 
 ### Puzzle Game
-- Use `snapToGrid()` for grid-based movement
-- Implement turn-based logic with flags
+- Grid-based movement
+- Turn-based logic with state management
 - Check win conditions after each move
 - Use static objects for walls/obstacles
 
 ### Racing Game
-- Use `applyForce()` for acceleration
-- Implement `setBrake()` for stopping
+- Velocity-based movement
+- Implement acceleration and braking
 - Add friction for realistic handling
 - Create checkpoints with collision detection
 
@@ -405,12 +499,12 @@ function update() {
 
 | Problem | Solution |
 |---------|----------|
-| Object not moving | Check if `update()` function exists and script is attached |
-| Collision not detected | Ensure both objects have `collision_enabled = True` |
+| Object not moving | Check if `update()` method is being called |
+| Collision not detected | Ensure collision detection is implemented |
 | Sound not playing | Check file exists in `assets/sounds/` folder |
-| Jerky movement | Use `* 0.016` for delta-time in movement |
-| Object falls through ground | Check platform has `is_static = True` |
-| Script errors | Check console output for error messages |
+| Jerky movement | Use `delta_time` in movement calculations |
+| Object falls through ground | Check collision detection and response |
+| Game crashes | Check console output for error messages |
 
 ## 📁 File Organization
 
@@ -421,7 +515,7 @@ your_game/
 │   ├── images/         # PNG, JPG files
 │   ├── sounds/         # WAV, MP3 files
 │   └── animations/     # Folders with frame sequences
-└── scripts/            # Additional AXScript files
+└── game_logic/         # Additional Python modules
 ```
 
 ## ⌨️ Debug Commands
@@ -430,6 +524,7 @@ While game is running:
 - `D` - Toggle debug mode (shows collision boxes)
 - `F` - Toggle performance stats
 - `ESC` - Exit game
-- Check console output for script errors and print statements
+- Check console output for errors and print statements
 
 This reference covers 90% of what you need to make games with Axarion Engine. For advanced features, see the full documentation in `DOCS.md`!
+

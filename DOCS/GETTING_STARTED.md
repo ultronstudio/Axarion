@@ -1,4 +1,5 @@
 
+
 # 🚀 Getting Started with Axarion Engine
 
 Welcome to Axarion Engine - the next-generation successor to VoidRay Engine! This guide will help you create your first game in just a few minutes, even if you're completely new to programming or game development.
@@ -12,6 +13,7 @@ Axarion Engine is a **code-first 2D game engine** built as the improved evolutio
 - **Complete Audio System** - Full sound effects and music (VoidRay had limited audio)
 - **Advanced Particle Effects** - Built-in explosion, fire, and smoke effects
 - **Better Error Handling** - Graceful degradation and clear error messages
+- **Pure Python Scripting** - Clean, readable Python code for game logic
 - **Professional Asset Pipeline** - Automatic loading and management
 - **Visual Debug Tools** - Collision bounds, performance monitoring
 
@@ -22,9 +24,43 @@ Axarion Engine is perfect for:
 - **Educators** teaching game development concepts
 - **Rapid prototyping** of game ideas
 
+## ⚡ Quick Start (5 Minutes to Your First Game!)
 
+### Step 1: Experience Next-Gen Performance
 
-### Step 1: Create Your First Game
+Let's see the improved Axarion Engine in action! Click the **Run** button or type:
+
+```bash
+python test_fixed_engine.py
+```
+
+You'll see our enhanced physics demo featuring:
+- A blue player character with smooth, responsive controls
+- Realistic bouncing balls with improved physics simulation
+- Solid platforms with perfect collision detection
+- Advanced debug visualization (much better than VoidRay!)
+- Smooth 60 FPS performance optimization
+
+**Enhanced Controls:**
+- `WASD` or `Arrow Keys` - Fluid player movement
+- `Space` - Realistic jumping with proper physics
+- `D` - Toggle advanced debug mode (shows collision bounds)
+- `F` - Performance monitoring (NEW!)
+- `ESC` - Exit
+
+*Notice how much smoother and more responsive this feels compared to VoidRay Engine!*
+
+### Step 2: Try the Assets Demo
+
+See sprites and animations in action:
+
+```bash
+python test_assets_demo.py
+```
+
+This shows how to use images, animations, and visual effects in your games.
+
+### Step 3: Create Your First Game
 
 Now let's make your own game! Create a new file called `my_first_game.py`:
 
@@ -47,32 +83,45 @@ player.set_property("width", 40)
 player.set_property("height", 40)
 player.set_property("color", (100, 200, 255))
 
-# Add simple movement with AXScript
-player.script_code = """
-var speed = 200;
+# Add simple movement with Python
+class PlayerController:
+    def __init__(self, player):
+        self.player = player
+        self.speed = 200
+    
+    def update(self, keys, delta_time):
+        # Move with arrow keys
+        if keys.get("ArrowLeft"):
+            self.player.position = (self.player.position[0] - self.speed * delta_time, self.player.position[1])
+        if keys.get("ArrowRight"):
+            self.player.position = (self.player.position[0] + self.speed * delta_time, self.player.position[1])
+        if keys.get("ArrowUp"):
+            self.player.position = (self.player.position[0], self.player.position[1] - self.speed * delta_time)
+        if keys.get("ArrowDown"):
+            self.player.position = (self.player.position[0], self.player.position[1] + self.speed * delta_time)
 
-function update() {
-    // Move with arrow keys
-    if (keyPressed("ArrowLeft")) {
-        move(-speed * 0.016, 0);
-    }
-    if (keyPressed("ArrowRight")) {
-        move(speed * 0.016, 0);
-    }
-    if (keyPressed("ArrowUp")) {
-        move(0, -speed * 0.016);
-    }
-    if (keyPressed("ArrowDown")) {
-        move(0, speed * 0.016);
-    }
-}
-"""
+# Create controller
+controller = PlayerController(player)
 
 # Add player to scene
 scene.add_object(player)
 
-# Run the game!
-engine.run()
+# Game loop
+import pygame
+clock = pygame.time.Clock()
+
+while engine.running:
+    delta_time = clock.tick(60) / 1000.0
+    keys = engine.get_keys()
+    
+    # Update controller
+    controller.update(keys, delta_time)
+    
+    # Update engine
+    engine.update(delta_time)
+    engine.render()
+
+engine.cleanup()
 ```
 
 Save and run it:
@@ -94,6 +143,33 @@ player = GameObject("Player", "rectangle")    # Rectangle shape
 enemy = GameObject("Enemy", "circle")         # Circle shape
 background = GameObject("BG", "sprite")       # Image/sprite
 ```
+
+### Python Game Logic
+
+All game logic is written in clean Python code:
+
+```python
+# Player movement example
+class PlayerMovement:
+    def __init__(self, player):
+        self.player = player
+        self.speed = 150
+    
+    def update(self, keys, delta_time):
+        # This runs every frame
+        if keys.get("Space"):
+            print("Jump!")
+        
+        # Movement
+        if keys.get("ArrowLeft"):
+            self.player.position = (self.player.position[0] - self.speed * delta_time, self.player.position[1])
+```
+
+**Common Python patterns:**
+- `player.position = (x, y)` - Move the object
+- `keys.get("key_name")` - Check if key is pressed
+- `player.set_property("name", value)` - Change object properties
+- `print("text")` - Show messages in console
 
 ### Scenes
 
@@ -128,7 +204,7 @@ engine.current_scene = game_scene
 #### 🛠️ **Developer Experience**
 - **Better Error Messages**: Clear, helpful error reporting (not cryptic like VoidRay)
 - **Advanced Debug Tools**: Visual collision bounds, performance graphs
-- **Enhanced AXScript**: More powerful scripting with better syntax
+- **Pure Python**: Clean, readable code without custom scripting languages
 - **Comprehensive Documentation**: Complete guides and tutorials
 
 #### 🎨 **Modern Features**
@@ -145,6 +221,7 @@ Let's make a simple but complete game where you collect coins, showcasing Axario
 from engine.core import AxarionEngine
 from engine.game_object import GameObject
 import random
+import pygame
 
 # Setup
 engine = AxarionEngine(800, 600)
@@ -160,53 +237,73 @@ player.set_property("height", 30)
 player.set_property("color", (100, 200, 100))
 player.add_tag("player")
 
-player.script_code = """
-var speed = 200;
-var score = 0;
-
-function update() {
-    // Movement
-    if (keyPressed("ArrowLeft")) move(-speed * 0.016, 0);
-    if (keyPressed("ArrowRight")) move(speed * 0.016, 0);
-    if (keyPressed("ArrowUp")) move(0, -speed * 0.016);
-    if (keyPressed("ArrowDown")) move(0, speed * 0.016);
-    
-    // Check coin collection
-    var coins = findObjectsByTag("coin");
-    for (var i = 0; i < coins.length; i++) {
-        if (isCollidingWith(coins[i].name)) {
-            // Collect coin!
-            score += 10;
-            print("Score: " + score);
-            // Coin will be destroyed automatically
-        }
-    }
-}
-"""
-
-scene.add_object(player)
-
-# Create coins randomly
+# Create coins
+coins = []
 for i in range(10):
     coin = GameObject(f"Coin_{i}", "circle")
     coin.position = (random.randint(100, 700), random.randint(100, 500))
     coin.set_property("radius", 15)
     coin.set_property("color", (255, 255, 0))
     coin.add_tag("coin")
-    
-    # Make coin disappear when collected
-    coin.script_code = """
-    function update() {
-        if (isCollidingWith("Player")) {
-            destroy();
-        }
-    }
-    """
-    
+    coins.append(coin)
     scene.add_object(coin)
 
-# Run the game
-engine.run()
+scene.add_object(player)
+
+# Game logic
+class CoinCollector:
+    def __init__(self, player, coins):
+        self.player = player
+        self.coins = coins
+        self.speed = 200
+        self.score = 0
+    
+    def update(self, keys, delta_time):
+        # Movement
+        x, y = self.player.position
+        if keys.get("ArrowLeft"):
+            x -= self.speed * delta_time
+        if keys.get("ArrowRight"):
+            x += self.speed * delta_time
+        if keys.get("ArrowUp"):
+            y -= self.speed * delta_time
+        if keys.get("ArrowDown"):
+            y += self.speed * delta_time
+        
+        self.player.position = (x, y)
+        
+        # Check coin collection
+        for coin in self.coins[:]:  # Copy list to avoid modification during iteration
+            if self.check_collision(self.player, coin):
+                self.coins.remove(coin)
+                scene.remove_object(coin)
+                self.score += 10
+                print(f"Score: {self.score}")
+    
+    def check_collision(self, obj1, obj2):
+        # Simple collision detection
+        x1, y1 = obj1.position
+        x2, y2 = obj2.position
+        distance = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+        return distance < 25
+
+# Create game controller
+game = CoinCollector(player, coins)
+
+# Game loop
+clock = pygame.time.Clock()
+while engine.running:
+    delta_time = clock.tick(60) / 1000.0
+    keys = engine.get_keys()
+    
+    # Update game
+    game.update(keys, delta_time)
+    
+    # Update engine
+    engine.update(delta_time)
+    engine.render()
+
+engine.cleanup()
 ```
 
 ## 🎨 Making It Look Better
@@ -227,6 +324,18 @@ asset_manager.load_all_assets()
 # Use sprite instead of rectangle
 player = GameObject("Player", "sprite")
 player.set_sprite("ship")  # Uses ship.png from assets
+```
+
+### Adding Sound Effects
+
+```python
+# In your Python code
+from engine.audio_system import AudioSystem
+audio = AudioSystem()
+
+def update(self, keys, delta_time):
+    if keys.get("Space"):
+        audio.play_sound("jump")  # Plays jump.wav
 ```
 
 ### Simple Animations
@@ -253,6 +362,10 @@ explosion.set_animation("explosion", speed=2.0, loop=False)
 - Player, enemies, platforms, pickups
 - Each has position, appearance, behavior
 
+### 4. **Python Classes** = The behavior
+- Makes objects interactive
+- Handles movement, collisions, logic
+
 ## 🎯 Game Ideas for Beginners
 
 Start with these simple concepts and build up:
@@ -277,6 +390,139 @@ Start with these simple concepts and build up:
 - Move objects to solve puzzles
 - Learn game state and win conditions
 
+## 🔧 Common Patterns and Recipes
+
+### Player Movement
+```python
+class PlayerMovement:
+    def __init__(self, player):
+        self.player = player
+        self.speed = 200
+    
+    def update(self, keys, delta_time):
+        x, y = self.player.position
+        if keys.get("ArrowLeft"):
+            x -= self.speed * delta_time
+        if keys.get("ArrowRight"):
+            x += self.speed * delta_time
+        if keys.get("ArrowUp"):
+            y -= self.speed * delta_time
+        if keys.get("ArrowDown"):
+            y += self.speed * delta_time
+        self.player.position = (x, y)
+```
+
+### Platformer Jumping
+```python
+class PlatformerController:
+    def __init__(self, player):
+        self.player = player
+        self.velocity_y = 0
+        self.jump_force = 400
+        self.gravity = 980
+        self.on_ground = False
+    
+    def update(self, keys, delta_time):
+        # Jumping
+        if keys.get("Space") and self.on_ground:
+            self.velocity_y = -self.jump_force
+            self.on_ground = False
+        
+        # Apply gravity
+        self.velocity_y += self.gravity * delta_time
+        
+        # Update position
+        x, y = self.player.position
+        y += self.velocity_y * delta_time
+        self.player.position = (x, y)
+```
+
+### Simple Enemy AI
+```python
+class EnemyAI:
+    def __init__(self, enemy, player):
+        self.enemy = enemy
+        self.player = player
+        self.speed = 100
+    
+    def update(self, delta_time):
+        # Follow player
+        enemy_x, enemy_y = self.enemy.position
+        player_x, player_y = self.player.position
+        
+        # Calculate direction
+        dx = player_x - enemy_x
+        dy = player_y - enemy_y
+        distance = (dx**2 + dy**2)**0.5
+        
+        if distance > 0:
+            # Normalize and move
+            dx /= distance
+            dy /= distance
+            
+            new_x = enemy_x + dx * self.speed * delta_time
+            new_y = enemy_y + dy * self.speed * delta_time
+            self.enemy.position = (new_x, new_y)
+```
+
+### Collision Detection
+```python
+def check_collision(obj1, obj2):
+    """Check collision between two objects"""
+    x1, y1 = obj1.position
+    x2, y2 = obj2.position
+    
+    # Circle collision
+    distance = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+    return distance < 30  # Adjust based on object sizes
+
+def check_rect_collision(obj1, obj2):
+    """Check rectangular collision"""
+    x1, y1 = obj1.position
+    w1, h1 = obj1.get_property("width"), obj1.get_property("height")
+    x2, y2 = obj2.position
+    w2, h2 = obj2.get_property("width"), obj2.get_property("height")
+    
+    return (x1 < x2 + w2 and x1 + w1 > x2 and 
+            y1 < y2 + h2 and y1 + h1 > y2)
+```
+
+## 🚨 Common Beginner Mistakes
+
+### 1. **Forgetting Delta Time**
+```python
+# ❌ Wrong - frame rate dependent
+x += 5
+
+# ✅ Right - smooth movement
+x += speed * delta_time
+```
+
+### 2. **Not Using Tags**
+```python
+# ❌ Hard to manage many objects
+enemy1 = GameObject("Enemy1", "circle")
+enemy2 = GameObject("Enemy2", "circle")
+
+# ✅ Use tags for groups
+enemy1.add_tag("enemy")
+enemy2.add_tag("enemy")
+# Then: scene.find_objects_by_tag("enemy")
+```
+
+### 3. **Complex Logic in Update**
+```python
+# ❌ Don't put everything in update()
+def update(self, keys, delta_time):
+    # 100 lines of code...
+
+# ✅ Break into smaller methods
+def update(self, keys, delta_time):
+    self.handle_movement(keys, delta_time)
+    self.check_collisions()
+    self.update_animation(delta_time)
+```
+
 ## 📚 What's Next?
 
 Once you're comfortable with the basics:
@@ -290,23 +536,23 @@ Once you're comfortable with the basics:
 ## 🆘 Getting Help
 
 ### Built-in Help
-- All AXScript functions are documented in `DOCS.md`
+- All Python functions are documented in `DOCS.md`
 - Run demos to see working examples
 - Use debug mode (`D` key) to visualize collisions
 
 ### Understanding Error Messages
 ```
-Runtime error at line 5: Undefined variable: speeed
+Runtime error at line 5: NameError: name 'speeed' is not defined
 ```
 This means you have a typo in your variable name (should be "speed").
 
 ```
-move() can only be called in object context
+AttributeError: 'GameObject' object has no attribute 'move'
 ```
-This means you're trying to use `move()` outside of an object's script.
+This means you're trying to use a method that doesn't exist.
 
 ### Common Solutions
-- **Object not moving?** Check if the script is attached and has `update()` function
+- **Object not moving?** Check if your update method is being called
 - **Collision not working?** Make sure both objects have collision enabled
 - **Sound not playing?** Check if the sound file exists in `assets/sounds/`
 
@@ -317,6 +563,7 @@ If you're coming from VoidRay Engine, here's what you need to know:
 ### **What's Compatible:**
 - ✅ Basic game object concepts
 - ✅ Scene structure (improved)
+- ✅ Core Python logic (enhanced)
 - ✅ Asset organization (now automatic)
 
 ### **What's Better:**
@@ -325,7 +572,7 @@ If you're coming from VoidRay Engine, here's what you need to know:
 - 💥 **Built-in particle effects** - No more manual particle coding
 - 🐛 **Better error handling** - Clear messages instead of crashes
 - 📚 **Professional documentation** - Comprehensive guides and examples
-- 🎯 **Enhanced scripting** - More functions and better syntax
+- 🎯 **Pure Python** - No custom scripting language needed
 
 ### **Migration Tips:**
 1. VoidRay projects work with minimal changes
@@ -363,3 +610,4 @@ You now know enough to start creating games with Axarion Engine - the most advan
 ---
 
 *Axarion Engine - The Evolution of VoidRay | Built for the Next Generation of Game Developers*
+

@@ -1,4 +1,3 @@
-
 # 🎮 Build Your First Complete Game: Space Defender
 
 In this tutorial, you'll create a complete space shooter game from scratch! By the end, you'll have a fully playable game with:
@@ -22,7 +21,7 @@ In this tutorial, you'll create a complete space shooter game from scratch! By t
 
 ## 📋 Prerequisites
 
-- Basic understanding of Python (variables, functions)
+- Basic understanding of Python (variables, functions, classes)
 - Completed the "Getting Started" guide
 - Axarion Engine running on your system
 
@@ -35,6 +34,8 @@ from engine.core import AxarionEngine
 from engine.game_object import GameObject
 from engine.asset_manager import asset_manager
 import random
+import pygame
+import math
 
 # Game constants
 SCREEN_WIDTH = 800
@@ -48,44 +49,44 @@ class SpaceDefender:
         # Initialize engine
         self.engine = AxarionEngine(SCREEN_WIDTH, SCREEN_HEIGHT)
         self.engine.initialize()
-        
+
         # Create main scene
         self.game_scene = self.engine.create_scene("Space Defender")
         self.engine.current_scene = self.game_scene
-        
+
         # Game state
         self.score = 0
         self.game_over = False
-        
+
         # Load assets
         self.setup_assets()
-        
+
         # Create game objects
         self.create_player()
         self.create_enemies()
         self.create_ui()
-    
+
     def setup_assets(self):
         """Load or create game assets"""
         # Create sample assets if they don't exist
         from assets.create_sample_assets import create_sample_assets
         create_sample_assets()
-        
+
         # Load all assets
         asset_manager.load_all_assets()
-    
+
     def create_player(self):
         """Create the player spaceship"""
         pass  # We'll implement this next
-    
+
     def create_enemies(self):
         """Create enemy ships"""
         pass  # We'll implement this later
-    
+
     def create_ui(self):
         """Create UI elements"""
         pass  # We'll implement this later
-    
+
     def run(self):
         """Start the game"""
         self.engine.run()
@@ -112,181 +113,208 @@ def create_player(self):
     """Create the player spaceship"""
     self.player = GameObject("Player", "sprite")
     self.player.position = (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 100)
-    
+
     # Try to use sprite, fallback to colored rectangle
     if not self.player.set_sprite("ship"):
         self.player.object_type = "rectangle"
         self.player.set_property("width", 40)
         self.player.set_property("height", 30)
         self.player.set_property("color", (100, 200, 255))
-    
+
     # Player properties
     self.player.add_tag("player")
     self.player.set_property("health", 100)
     self.player.set_property("max_health", 100)
-    
-    # Player controls script
-    self.player.script_code = f"""
-var speed = {PLAYER_SPEED};
-var shootCooldown = 0;
-var health = 100;
 
-function update() {{
-    // Decrease cooldown
-    shootCooldown -= 0.016;
-    
-    // Movement
-    var pos = getProperty("position");
-    
-    if (keyPressed("ArrowLeft") || keyPressed("a")) {{
-        pos.x -= speed * 0.016;
-    }}
-    if (keyPressed("ArrowRight") || keyPressed("d")) {{
-        pos.x += speed * 0.016;
-    }}
-    if (keyPressed("ArrowUp") || keyPressed("w")) {{
-        pos.y -= speed * 0.016;
-    }}
-    if (keyPressed("ArrowDown") || keyPressed("s")) {{
-        pos.y += speed * 0.016;
-    }}
-    
-    // Keep player on screen
-    if (pos.x < 0) pos.x = 0;
-    if (pos.x > {SCREEN_WIDTH - 40}) pos.x = {SCREEN_WIDTH - 40};
-    if (pos.y < 0) pos.y = 0;
-    if (pos.y > {SCREEN_HEIGHT - 30}) pos.y = {SCREEN_HEIGHT - 30};
-    
-    setProperty("position", pos);
-    
-    // Shooting
-    if (keyPressed("Space") && shootCooldown <= 0) {{
-        createPlayerBullet();
-        shootCooldown = 0.2;  // 5 shots per second
-    }}
-    
-    // Check collisions with enemies
-    var enemies = getCollidingObjects();
-    for (var i = 0; i < enemies.length; i++) {{
-        if (findObjectByName(enemies[i]).hasTag("enemy")) {{
-            takeDamage(20);
-            break;
-        }}
-    }}
-}}
+    # Create player controller
+    self.player_controller = PlayerController(self.player)
 
-function createPlayerBullet() {{
-    var pos = getProperty("position");
-    var bullet = instantiate("circle", pos.x + 20, pos.y);
-    // Bullet will be configured by Python
-}}
-
-function takeDamage(amount) {{
-    health -= amount;
-    setProperty("health", health);
-    
-    if (health <= 0) {{
-        // Game over logic will be handled by engine
-        print("Player destroyed!");
-    }}
-}}
-"""
-    
     self.game_scene.add_object(self.player)
+
+class PlayerController:
+    def __init__(self, player):
+        self.player = player
+        self.speed = PLAYER_SPEED
+        self.shoot_cooldown = 0
+        self.health = 100
+
+    def update(self, keys, delta_time):
+        # Decrease cooldown
+        self.shoot_cooldown -= delta_time
+
+        # Movement
+        x, y = self.player.position
+
+        if keys.get("ArrowLeft") or keys.get("a"):
+            x -= self.speed * delta_time
+        if keys.get("ArrowRight") or keys.get("d"):
+            x += self.speed * delta_time
+        if keys.get("ArrowUp") or keys.get("w"):
+            y -= self.speed * delta_time
+        if keys.get("ArrowDown") or keys.get("s"):
+            y += self.speed * delta_time
+
+        # Keep player on screen
+        x = max(0, min(x, SCREEN_WIDTH - 40))
+        y = max(0, min(y, SCREEN_HEIGHT - 30))
+
+        self.player.position = (x, y)
+
+        # Shooting
+        if keys.get("Space") and self.shoot_cooldown <= 0:
+            self.shoot()
+            self.shoot_cooldown = 0.2  # 5 shots per second
+
+    def shoot(self):
+        # This will be handled by the main game class
+        pass
+
+    def take_damage(self, amount):
+        self.health -= amount
+        self.player.set_property("health", self.health)
+
+        if self.health <= 0:
+            print("Player destroyed!")
+```
+
+Update the `run` method to handle the game loop:
+
+```python
+def run(self):
+    """Start the game"""
+    clock = pygame.time.Clock()
+
+    while self.engine.running:
+        delta_time = clock.tick(60) / 1000.0
+
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.engine.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.engine.running = False
+
+        # Get input
+        keys = self.engine.get_keys()
+
+        # Update player
+        self.player_controller.update(keys, delta_time)
+
+        # Update engine
+        self.engine.update(delta_time)
+        self.engine.render()
+
+    self.engine.cleanup()
 ```
 
 Run the game now and you should be able to move your blue rectangle (or ship sprite) around with WASD or arrow keys!
 
 ## 💥 Step 3: Add Bullets
 
-Now let's make the shooting work. Add this method to your `SpaceDefender` class:
+Now let's make the shooting work. Add this to your `SpaceDefender` class:
 
 ```python
+def __init__(self):
+    # ... existing code ...
+
+    # Game objects
+    self.bullets = []
+    self.enemies = []
+
 def create_bullet(self, x, y, velocity_y, tag, color):
     """Create a bullet object"""
     bullet = GameObject(f"Bullet_{random.randint(1000, 9999)}", "circle")
     bullet.position = (x, y)
     bullet.set_property("radius", 3)
     bullet.set_property("color", color)
-    bullet.velocity = (0, velocity_y)
     bullet.add_tag(tag)
-    
-    # Bullet behavior
-    bullet.script_code = f"""
-function update() {{
-    var pos = getProperty("position");
-    
-    // Remove if off screen
-    if (pos.y < -10 || pos.y > {SCREEN_HEIGHT + 10}) {{
-        destroy();
-        return;
-    }}
-    
-    // Check collisions
-    var colliding = getCollidingObjects();
-    for (var i = 0; i < colliding.length; i++) {{
-        var other = findObjectByName(colliding[i]);
-        
-        if (hasTag("player_bullet") && other.hasTag("enemy")) {{
-            // Player bullet hit enemy
-            print("Enemy hit!");
-            destroy();
-            other.takeDamage(50);
-            break;
-        }}
-        else if (hasTag("enemy_bullet") && other.hasTag("player")) {{
-            // Enemy bullet hit player
-            print("Player hit!");
-            destroy();
-            other.takeDamage(20);
-            break;
-        }}
-    }}
-}}
-"""
-    
-    return self.game_scene.add_object(bullet)
+
+    # Create bullet controller
+    bullet_controller = BulletController(bullet, velocity_y)
+
+    self.bullets.append({'object': bullet, 'controller': bullet_controller})
+    self.game_scene.add_object(bullet)
+
+    return bullet
+
+class BulletController:
+    def __init__(self, bullet, velocity_y):
+        self.bullet = bullet
+        self.velocity_y = velocity_y
+        self.destroyed = False
+
+    def update(self, delta_time):
+        if self.destroyed:
+            return
+
+        # Move bullet
+        x, y = self.bullet.position
+        y += self.velocity_y * delta_time
+        self.bullet.position = (x, y)
+
+        # Remove if off screen
+        if y < -10 or y > SCREEN_HEIGHT + 10:
+            self.destroyed = True
 ```
 
-Now we need to handle bullet creation from the player script. Add this to your `SpaceDefender` class after `__init__`:
+Update the `PlayerController.shoot` method:
 
 ```python
-def update_game(self):
-    """Handle game logic each frame"""
-    # Handle bullet creation requests
-    # This is a simplified approach - in a real game you'd use a more robust system
-    
-    # Create player bullets when Space is pressed
-    import pygame
-    keys = pygame.key.get_pressed()
-    if hasattr(self, 'last_shoot_time'):
-        current_time = pygame.time.get_ticks()
-        if keys[pygame.K_SPACE] and current_time - self.last_shoot_time > 200:
-            pos = self.player.position
-            self.create_bullet(pos[0] + 20, pos[1], -BULLET_SPEED, "player_bullet", (255, 255, 100))
-            self.last_shoot_time = current_time
-    else:
-        self.last_shoot_time = pygame.time.get_ticks()
+def shoot(self):
+    # Signal to create bullet - handled by main game
+    self.should_shoot = True
 ```
 
-And modify the `run` method to call our update:
+And add this to the `PlayerController.__init__`:
+
+```python
+def __init__(self, player):
+    # ... existing code ...
+    self.should_shoot = False
+```
+
+Update the main game loop to handle shooting:
 
 ```python
 def run(self):
     """Start the game"""
-    import pygame
     clock = pygame.time.Clock()
-    
+
     while self.engine.running:
-        # Update game logic
-        self.update_game()
-        
-        # Run engine frame
-        self.engine.run_frame()
-        
-        # Cap framerate
-        clock.tick(60)
-    
+        delta_time = clock.tick(60) / 1000.0
+
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.engine.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.engine.running = False
+
+        # Get input
+        keys = self.engine.get_keys()
+
+        # Update player
+        self.player_controller.update(keys, delta_time)
+
+        # Handle player shooting
+        if self.player_controller.should_shoot:
+            x, y = self.player.position
+            self.create_bullet(x + 20, y, -BULLET_SPEED, "player_bullet", (255, 255, 100))
+            self.player_controller.should_shoot = False
+
+        # Update bullets
+        for bullet_data in self.bullets[:]:
+            bullet_data['controller'].update(delta_time)
+            if bullet_data['controller'].destroyed:
+                self.game_scene.remove_object(bullet_data['object'])
+                self.bullets.remove(bullet_data)
+
+        # Update engine
+        self.engine.update(delta_time)
+        self.engine.render()
+
     self.engine.cleanup()
 ```
 
@@ -294,334 +322,350 @@ Test it out! You should now be able to shoot yellow bullets by pressing Space.
 
 ## 👾 Step 4: Add Enemies
 
-Now for the fun part - enemies! Replace the `create_enemies` method:
+Now for the fun part - enemies! Add this to your `SpaceDefender` class:
 
 ```python
 def create_enemies(self):
     """Create enemy ships"""
     self.enemy_spawn_timer = 0
     self.enemies_created = 0
-    
+
 def spawn_enemy(self):
     """Spawn a single enemy"""
     enemy = GameObject(f"Enemy_{self.enemies_created}", "sprite")
-    
+
     # Try to use enemy sprite, fallback to rectangle
     if not enemy.set_sprite("enemy"):
         enemy.object_type = "rectangle"
         enemy.set_property("width", 35)
         enemy.set_property("height", 25)
         enemy.set_property("color", (255, 100, 100))
-    
+
     # Random spawn position at top of screen
     enemy.position = (random.randint(50, SCREEN_WIDTH - 50), -30)
-    enemy.velocity = (random.randint(-50, 50), ENEMY_SPEED)
     enemy.add_tag("enemy")
-    enemy.set_property("health", 50)
-    
-    # Enemy AI script
-    enemy.script_code = f"""
-var health = 50;
-var shootTimer = random() * 2;  // Random initial shoot delay
 
-function update() {{
-    // Move down and slightly side to side
-    var pos = getProperty("position");
-    var vel = getProperty("velocity");
-    
-    // Remove if off screen
-    if (pos.y > {SCREEN_HEIGHT + 50}) {{
-        destroy();
-        return;
-    }}
-    
-    // Shooting
-    shootTimer -= 0.016;
-    if (shootTimer <= 0) {{
-        shootAtPlayer();
-        shootTimer = 2 + random() * 2;  // Shoot every 2-4 seconds
-    }}
-}}
+    # Create enemy controller
+    enemy_controller = EnemyController(enemy)
 
-function shootAtPlayer() {{
-    var pos = getProperty("position");
-    // Simple shooting - bullet creation handled by engine
-    print("Enemy shooting from " + pos.x + ", " + pos.y);
-}}
-
-function takeDamage(amount) {{
-    health -= amount;
-    if (health <= 0) {{
-        // Create explosion effect
-        print("Enemy destroyed!");
-        destroy();
-    }}
-}}
-"""
-    
+    self.enemies.append({'object': enemy, 'controller': enemy_controller})
     self.game_scene.add_object(enemy)
     self.enemies_created += 1
+
+class EnemyController:
+    def __init__(self, enemy):
+        self.enemy = enemy
+        self.speed = ENEMY_SPEED
+        self.velocity_x = random.randint(-50, 50)
+        self.shoot_timer = random.uniform(1, 3)
+        self.health = 50
+        self.destroyed = False
+
+    def update(self, delta_time):
+        if self.destroyed:
+            return
+
+        # Move down and slightly side to side
+        x, y = self.enemy.position
+        x += self.velocity_x * delta_time
+        y += self.speed * delta_time
+
+        self.enemy.position = (x, y)
+
+        # Remove if off screen
+        if y > SCREEN_HEIGHT + 50:
+            self.destroyed = True
+            return
+
+        # Shooting
+        self.shoot_timer -= delta_time
+        if self.shoot_timer <= 0:
+            self.should_shoot = True
+            self.shoot_timer = random.uniform(2, 4)  # Shoot every 2-4 seconds
+
+    def take_damage(self, amount):
+        self.health -= amount
+        if self.health <= 0:
+            print("Enemy destroyed!")
+            self.destroyed = True
 ```
 
-Update the `update_game` method to spawn enemies:
+Update the game loop to spawn and update enemies:
 
 ```python
-def update_game(self):
-    """Handle game logic each frame"""
-    # Handle bullet creation requests
-    import pygame
-    keys = pygame.key.get_pressed()
-    if hasattr(self, 'last_shoot_time'):
-        current_time = pygame.time.get_ticks()
-        if keys[pygame.K_SPACE] and current_time - self.last_shoot_time > 200:
-            pos = self.player.position
-            self.create_bullet(pos[0] + 20, pos[1], -BULLET_SPEED, "player_bullet", (255, 255, 100))
-            self.last_shoot_time = current_time
-    else:
-        self.last_shoot_time = pygame.time.get_ticks()
-    
-    # Spawn enemies
-    self.enemy_spawn_timer += 1/60  # Assuming 60 FPS
-    if self.enemy_spawn_timer > 2:  # Spawn every 2 seconds
-        self.spawn_enemy()
-        self.enemy_spawn_timer = 0
-    
-    # Enemy shooting
-    self.handle_enemy_shooting()
+def run(self):
+    """Start the game"""
+    clock = pygame.time.Clock()
 
-def handle_enemy_shooting(self):
-    """Handle enemy bullet creation"""
-    # Find all enemies and let them shoot occasionally
-    for obj_name, obj in self.game_scene.objects.items():
-        if obj.has_tag("enemy") and random.random() < 0.01:  # 1% chance per frame
-            pos = obj.position
-            self.create_bullet(pos[0] + 17, pos[1] + 25, 200, "enemy_bullet", (255, 100, 100))
+    while self.engine.running:
+        delta_time = clock.tick(60) / 1000.0
+
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.engine.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.engine.running = False
+
+        # Get input
+        keys = self.engine.get_keys()
+
+        # Update player
+        self.player_controller.update(keys, delta_time)
+
+        # Handle player shooting
+        if self.player_controller.should_shoot:
+            x, y = self.player.position
+            self.create_bullet(x + 20, y, -BULLET_SPEED, "player_bullet", (255, 255, 100))
+            self.player_controller.should_shoot = False
+
+        # Spawn enemies
+        self.enemy_spawn_timer += delta_time
+        if self.enemy_spawn_timer > 2:  # Spawn every 2 seconds
+            self.spawn_enemy()
+            self.enemy_spawn_timer = 0
+
+        # Update enemies
+        for enemy_data in self.enemies[:]:
+            enemy_data['controller'].update(delta_time)
+
+            # Handle enemy shooting
+            if hasattr(enemy_data['controller'], 'should_shoot') and enemy_data['controller'].should_shoot:
+                x, y = enemy_data['object'].position
+                self.create_bullet(x + 17, y + 25, 200, "enemy_bullet", (255, 100, 100))
+                enemy_data['controller'].should_shoot = False
+
+            # Remove destroyed enemies
+            if enemy_data['controller'].destroyed:
+                self.game_scene.remove_object(enemy_data['object'])
+                self.enemies.remove(enemy_data)
+
+        # Update bullets
+        for bullet_data in self.bullets[:]:
+            bullet_data['controller'].update(delta_time)
+            if bullet_data['controller'].destroyed:
+                self.game_scene.remove_object(bullet_data['object'])
+                self.bullets.remove(bullet_data)
+
+        # Update engine
+        self.engine.update(delta_time)
+        self.engine.render()
+
+    self.engine.cleanup()
 ```
 
-Run the game! You should now see red enemy ships spawning at the top and moving down. They'll occasionally shoot red bullets at you.
+Run the game! You should now see red enemy ships spawning at the top and moving down. They'll occasionally shoot red bullets.
 
-## 📊 Step 5: Add Score and UI
+## 📊 Step 5: Add Collision Detection
 
-Let's add a score system and display it. First, update the bullet collision detection to award points:
+Let's add collision detection between bullets and ships:
 
 ```python
-def award_points(self, points):
-    """Award points to player"""
-    self.score += points
-    print(f"Score: {self.score}")
+def check_collision(self, obj1, obj2):
+    """Check collision between two objects"""
+    x1, y1 = obj1.position
+    x2, y2 = obj2.position
 
-def update_game(self):
-    """Handle game logic each frame"""
-    # Previous code...
-    
-    # Check for destroyed enemies and award points
-    # This is simplified - in a real game you'd use events
-    current_enemies = len([obj for obj in self.game_scene.objects.values() if obj.has_tag("enemy")])
-    if hasattr(self, 'last_enemy_count'):
-        if current_enemies < self.last_enemy_count:
-            # Enemy was destroyed
-            self.award_points(100)
-    self.last_enemy_count = current_enemies
-    
-    # Check game over
-    if self.player.get_property("health") <= 0:
-        self.game_over = True
-        print(f"GAME OVER! Final Score: {self.score}")
+    # Simple circle collision
+    distance = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+    return distance < 30  # Adjust based on object sizes
+
+def handle_collisions(self):
+    """Handle all collision detection"""
+    # Player bullets vs enemies
+    for bullet_data in self.bullets[:]:
+        if bullet_data['object'].has_tag("player_bullet"):
+            for enemy_data in self.enemies[:]:
+                if self.check_collision(bullet_data['object'], enemy_data['object']):
+                    # Hit!
+                    bullet_data['controller'].destroyed = True
+                    enemy_data['controller'].take_damage(50)
+                    self.score += 100
+                    self.create_explosion(enemy_data['object'].position[0], enemy_data['object'].position[1])
+                    break
+
+    # Enemy bullets vs player
+    for bullet_data in self.bullets[:]:
+        if bullet_data['object'].has_tag("enemy_bullet"):
+            if self.check_collision(bullet_data['object'], self.player):
+                bullet_data['controller'].destroyed = True
+                self.player_controller.take_damage(20)
+
+    # Enemies vs player
+    for enemy_data in self.enemies[:]:
+        if self.check_collision(enemy_data['object'], self.player):
+            enemy_data['controller'].destroyed = True
+            self.player_controller.take_damage(30)
+```
+
+Add this to the game loop:
+
+```python
+def run(self):
+    """Start the game"""
+    clock = pygame.time.Clock()
+
+    while self.engine.running:
+        # ... existing code ...
+
+        # Handle collisions
+        self.handle_collisions()
+
+        # ... rest of game loop ...
 ```
 
 ## 🎨 Step 6: Add Visual Polish
 
-Let's make the game feel more alive with some effects:
+Let's make the game feel more alive with explosion effects:
 
 ```python
 def create_explosion(self, x, y):
     """Create explosion effect"""
-    explosion = GameObject(f"Explosion_{random.randint(1000, 9999)}", "animated_sprite")
+    explosion = GameObject(f"Explosion_{random.randint(1000, 9999)}", "circle")
     explosion.position = (x, y)
-    
-    # Try to use explosion animation, fallback to particles
-    if explosion.set_animation("explosion", speed=2.0, loop=False):
-        explosion.script_code = """
-var timer = 1.0;  // 1 second lifetime
+    explosion.set_property("radius", 10)
+    explosion.set_property("color", (255, 150, 0))
 
-function update() {
-    timer -= 0.016;
-    if (timer <= 0) {
-        destroy();
-    }
-}
-"""
-    else:
-        # Fallback: create simple expanding circle
-        explosion.object_type = "circle"
-        explosion.set_property("radius", 5)
-        explosion.set_property("color", (255, 150, 0))
-        explosion.script_code = """
-var timer = 0.5;
-var startRadius = 5;
+    # Create explosion controller
+    explosion_controller = ExplosionController(explosion)
 
-function update() {
-    timer -= 0.016;
-    var radius = startRadius * (1 + (0.5 - timer) * 4);
-    setProperty("radius", radius);
-    
-    if (timer <= 0) {
-        destroy();
-    }
-}
-"""
-    
+    self.explosions = getattr(self, 'explosions', [])
+    self.explosions.append({'object': explosion, 'controller': explosion_controller})
     self.game_scene.add_object(explosion)
+
+class ExplosionController:
+    def __init__(self, explosion):
+        self.explosion = explosion
+        self.timer = 0.5
+        self.start_radius = 10
+        self.destroyed = False
+
+    def update(self, delta_time):
+        if self.destroyed:
+            return
+
+        self.timer -= delta_time
+
+        # Expand and fade
+        progress = 1 - (self.timer / 0.5)
+        radius = self.start_radius * (1 + progress * 3)
+        self.explosion.set_property("radius", radius)
+
+        if self.timer <= 0:
+            self.destroyed = True
 ```
 
-Update the bullet collision detection to create explosions:
+Update the game loop to handle explosions:
 
 ```python
-def create_bullet(self, x, y, velocity_y, tag, color):
-    """Create a bullet object"""
-    bullet = GameObject(f"Bullet_{random.randint(1000, 9999)}", "circle")
-    bullet.position = (x, y)
-    bullet.set_property("radius", 3)
-    bullet.set_property("color", color)
-    bullet.velocity = (0, velocity_y)
-    bullet.add_tag(tag)
-    
-    # Bullet behavior
-    bullet.script_code = f"""
-function update() {{
-    var pos = getProperty("position");
-    
-    // Remove if off screen
-    if (pos.y < -10 || pos.y > {SCREEN_HEIGHT + 10}) {{
-        destroy();
-        return;
-    }}
-    
-    // Check collisions
-    var colliding = getCollidingObjects();
-    for (var i = 0; i < colliding.length; i++) {{
-        var otherName = colliding[i];
-        var other = findObjectByName(otherName);
-        
-        if (hasTag("player_bullet") && other.hasTag("enemy")) {{
-            // Player bullet hit enemy
-            print("Enemy hit!");
-            // Create explosion at enemy position
-            var enemyPos = other.getProperty("position");
-            createExplosion(enemyPos.x, enemyPos.y);
-            destroy();
-            other.destroy();
-            break;
-        }}
-        else if (hasTag("enemy_bullet") && other.hasTag("player")) {{
-            // Enemy bullet hit player
-            print("Player hit!");
-            destroy();
-            other.takeDamage(20);
-            break;
-        }}
-    }}
-}}
-"""
-    
-    return self.game_scene.add_object(bullet)
+def run(self):
+    """Start the game"""
+    clock = pygame.time.Clock()
+
+    while self.engine.running:
+        # ... existing code ...
+
+        # Update explosions
+        if hasattr(self, 'explosions'):
+            for explosion_data in self.explosions[:]:
+                explosion_data['controller'].update(delta_time)
+                if explosion_data['controller'].destroyed:
+                    self.game_scene.remove_object(explosion_data['object'])
+                    self.explosions.remove(explosion_data)
+
+        # ... rest of game loop ...
 ```
 
-## 🎵 Step 7: Add Sound Effects
+## 🎮 Step 7: Add Game Over and UI
 
-If you have sound files, you can add them:
-
-```python
-def setup_assets(self):
-    """Load or create game assets"""
-    # Create sample assets if they don't exist
-    from assets.create_sample_assets import create_sample_assets
-    create_sample_assets()
-    
-    # Load all assets
-    asset_manager.load_all_assets()
-    
-    # Load specific sounds if available
-    self.has_sounds = True
-    try:
-        asset_manager.load_sound("shoot", "assets/sounds/shoot.wav")
-        asset_manager.load_sound("explosion", "assets/sounds/explosion.wav")
-        asset_manager.load_sound("hit", "assets/sounds/hit.wav")
-    except:
-        self.has_sounds = False
-        print("Sound files not found - running without sound")
-```
-
-Add sound effects to actions by updating scripts:
-
-```python
-# In player script, add to shooting:
-playSound("shoot");
-
-# In bullet collision, add:
-playSound("explosion");
-```
-
-## 🎮 Step 8: Complete Game Loop
-
-Let's add a proper game over screen and restart functionality:
+Let's add a proper game over screen and score display:
 
 ```python
 def create_ui(self):
     """Create UI elements"""
-    # Score display
-    self.score_text = GameObject("ScoreText", "text")
-    self.score_text.position = (10, 10)
-    self.score_text.set_property("text", "Score: 0")
-    self.score_text.set_property("color", (255, 255, 255))
-    self.game_scene.add_object(self.score_text)
-    
-    # Health display
-    self.health_text = GameObject("HealthText", "text")
-    self.health_text.position = (10, 40)
-    self.health_text.set_property("text", "Health: 100")
-    self.health_text.set_property("color", (255, 255, 255))
-    self.game_scene.add_object(self.health_text)
+    # Score will be printed to console for now
+    print("🚀 Space Defender Started!")
+    print("Controls: WASD/Arrows to move, Space to shoot")
+    print("Press ESC to quit")
 
-def update_ui(self):
-    """Update UI elements"""
-    if hasattr(self, 'score_text'):
-        self.score_text.set_property("text", f"Score: {self.score}")
-    
-    if hasattr(self, 'health_text'):
-        health = self.player.get_property("health")
-        self.health_text.set_property("text", f"Health: {health}")
+def check_game_over(self):
+    """Check if game should end"""
+    if self.player_controller.health <= 0:
+        self.game_over = True
+        print(f"GAME OVER! Final Score: {self.score}")
+        print("Press R to restart or ESC to quit")
 
-def update_game(self):
-    """Handle game logic each frame"""
-    if self.game_over:
-        return
-    
-    # Previous update code...
-    
-    # Update UI
-    self.update_ui()
-    
-    # Check game over condition
-    if self.player.get_property("health") <= 0:
-        self.show_game_over()
+def restart_game(self):
+    """Restart the game"""
+    # Clear all objects
+    self.bullets.clear()
+    self.enemies.clear()
+    if hasattr(self, 'explosions'):
+        self.explosions.clear()
 
-def show_game_over(self):
-    """Display game over screen"""
-    self.game_over = True
-    
-    # Create game over text
-    game_over_text = GameObject("GameOverText", "text")
-    game_over_text.position = (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2)
-    game_over_text.set_property("text", f"GAME OVER! Score: {self.score}")
-    game_over_text.set_property("color", (255, 255, 255))
-    self.game_scene.add_object(game_over_text)
-    
-    restart_text = GameObject("RestartText", "text")
-    restart_text.position = (SCREEN_WIDTH // 2 - 120, SCREEN_HEIGHT // 2 + 30)
-    restart_text.set_property("text", "Press R to restart or ESC to quit")
-    restart_text.set_property("color", (200, 200, 200))
-    self.game_scene.add_object(restart_text)
+    # Reset game state
+    self.score = 0
+    self.game_over = False
+    self.enemy_spawn_timer = 0
+    self.enemies_created = 0
+
+    # Reset player
+    self.player_controller.health = 100
+    self.player.position = (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 100)
+
+    print("Game restarted!")
+```
+
+Update the game loop to handle game over:
+
+```python
+def run(self):
+    """Start the game"""
+    clock = pygame.time.Clock()
+
+    while self.engine.running:
+        delta_time = clock.tick(60) / 1000.0
+
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.engine.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.engine.running = False
+                elif event.key == pygame.K_r and self.game_over:
+                    self.restart_game()
+
+        # Skip game logic if game over
+        if self.game_over:
+            self.engine.update(delta_time)
+            self.engine.render()
+            continue
+
+        # Get input
+        keys = self.engine.get_keys()
+
+        # ... rest of game logic ...
+
+        # Check game over
+        self.check_game_over()
+
+        # Display score periodically
+        if hasattr(self, 'score_timer'):
+            self.score_timer += delta_time
+        else:
+            self.score_timer = 0
+
+        if self.score_timer > 1:  # Every second
+            print(f"Score: {self.score} | Health: {self.player_controller.health}")
+            self.score_timer = 0
+
+        # Update engine
+        self.engine.update(delta_time)
+        self.engine.render()
+
+    self.engine.cleanup()
 ```
 
 ## 🏁 Final Complete Code
@@ -634,6 +678,7 @@ from engine.game_object import GameObject
 from engine.asset_manager import asset_manager
 import random
 import pygame
+import math
 
 # Game constants
 SCREEN_WIDTH = 800
@@ -642,281 +687,339 @@ PLAYER_SPEED = 250
 BULLET_SPEED = 400
 ENEMY_SPEED = 100
 
+class PlayerController:
+    def __init__(self, player):
+        self.player = player
+        self.speed = PLAYER_SPEED
+        self.shoot_cooldown = 0
+        self.health = 100
+        self.should_shoot = False
+
+    def update(self, keys, delta_time):
+        self.shoot_cooldown -= delta_time
+
+        # Movement
+        x, y = self.player.position
+
+        if keys.get("ArrowLeft") or keys.get("a"):
+            x -= self.speed * delta_time
+        if keys.get("ArrowRight") or keys.get("d"):
+            x += self.speed * delta_time
+        if keys.get("ArrowUp") or keys.get("w"):
+            y -= self.speed * delta_time
+        if keys.get("ArrowDown") or keys.get("s"):
+            y += self.speed * delta_time
+
+        # Keep player on screen
+        x = max(0, min(x, SCREEN_WIDTH - 40))
+        y = max(0, min(y, SCREEN_HEIGHT - 30))
+
+        self.player.position = (x, y)
+
+        # Shooting
+        if keys.get("Space") and self.shoot_cooldown <= 0:
+            self.should_shoot = True
+            self.shoot_cooldown = 0.2
+
+    def take_damage(self, amount):
+        self.health -= amount
+        if self.health <= 0:
+            print("Player destroyed!")
+
+class BulletController:
+    def __init__(self, bullet, velocity_y):
+        self.bullet = bullet
+        self.velocity_y = velocity_y
+        self.destroyed = False
+
+    def update(self, delta_time):
+        if self.destroyed:
+            return
+
+        x, y = self.bullet.position
+        y += self.velocity_y * delta_time
+        self.bullet.position = (x, y)
+
+        if y < -10 or y > SCREEN_HEIGHT + 10:
+            self.destroyed = True
+
+class EnemyController:
+    def __init__(self, enemy):
+        self.enemy = enemy
+        self.speed = ENEMY_SPEED
+        self.velocity_x = random.randint(-50, 50)
+        self.shoot_timer = random.uniform(1, 3)
+        self.health = 50
+        self.destroyed = False
+        self.should_shoot = False
+
+    def update(self, delta_time):
+        if self.destroyed:
+            return
+
+        x, y = self.enemy.position
+        x += self.velocity_x * delta_time
+        y += self.speed * delta_time
+
+        self.enemy.position = (x, y)
+
+        if y > SCREEN_HEIGHT + 50:
+            self.destroyed = True
+            return
+
+        self.shoot_timer -= delta_time
+        if self.shoot_timer <= 0:
+            self.should_shoot = True
+            self.shoot_timer = random.uniform(2, 4)
+
+    def take_damage(self, amount):
+        self.health -= amount
+        if self.health <= 0:
+            self.destroyed = True
+
+class ExplosionController:
+    def __init__(self, explosion):
+        self.explosion = explosion
+        self.timer = 0.5
+        self.start_radius = 10
+        self.destroyed = False
+
+    def update(self, delta_time):
+        if self.destroyed:
+            return
+
+        self.timer -= delta_time
+        progress = 1 - (self.timer / 0.5)
+        radius = self.start_radius * (1 + progress * 3)
+        self.explosion.set_property("radius", radius)
+
+        if self.timer <= 0:
+            self.destroyed = True
+
 class SpaceDefender:
     def __init__(self):
-        # Initialize engine
         self.engine = AxarionEngine(SCREEN_WIDTH, SCREEN_HEIGHT)
         self.engine.initialize()
-        
-        # Create main scene
+
         self.game_scene = self.engine.create_scene("Space Defender")
         self.engine.current_scene = self.game_scene
-        
-        # Game state
+
         self.score = 0
         self.game_over = False
         self.enemy_spawn_timer = 0
         self.enemies_created = 0
-        self.last_enemy_count = 0
-        
-        # Load assets
+
+        self.bullets = []
+        self.enemies = []
+        self.explosions = []
+
         self.setup_assets()
-        
-        # Create game objects
         self.create_player()
-        self.create_enemies()
         self.create_ui()
-    
+
     def setup_assets(self):
-        """Load or create game assets"""
         from assets.create_sample_assets import create_sample_assets
         create_sample_assets()
         asset_manager.load_all_assets()
-    
+
     def create_player(self):
-        """Create the player spaceship"""
         self.player = GameObject("Player", "sprite")
         self.player.position = (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 100)
-        
+
         if not self.player.set_sprite("ship"):
             self.player.object_type = "rectangle"
             self.player.set_property("width", 40)
             self.player.set_property("height", 30)
             self.player.set_property("color", (100, 200, 255))
-        
+
         self.player.add_tag("player")
-        self.player.set_property("health", 100)
-        
-        self.player.script_code = f"""
-var speed = {PLAYER_SPEED};
-var health = 100;
-
-function update() {{
-    var pos = getProperty("position");
-    
-    if (keyPressed("ArrowLeft") || keyPressed("a")) {{
-        pos.x -= speed * 0.016;
-    }}
-    if (keyPressed("ArrowRight") || keyPressed("d")) {{
-        pos.x += speed * 0.016;
-    }}
-    if (keyPressed("ArrowUp") || keyPressed("w")) {{
-        pos.y -= speed * 0.016;
-    }}
-    if (keyPressed("ArrowDown") || keyPressed("s")) {{
-        pos.y += speed * 0.016;
-    }}
-    
-    if (pos.x < 0) pos.x = 0;
-    if (pos.x > {SCREEN_WIDTH - 40}) pos.x = {SCREEN_WIDTH - 40};
-    if (pos.y < 0) pos.y = 0;
-    if (pos.y > {SCREEN_HEIGHT - 30}) pos.y = {SCREEN_HEIGHT - 30};
-    
-    setProperty("position", pos);
-}}
-
-function takeDamage(amount) {{
-    health -= amount;
-    setProperty("health", health);
-}}
-"""
-        
+        self.player_controller = PlayerController(self.player)
         self.game_scene.add_object(self.player)
-    
-    def create_enemies(self):
-        """Create enemy ships"""
-        pass  # Enemies are spawned dynamically
-    
+
     def create_ui(self):
-        """Create UI elements"""
-        pass  # UI updates are handled in update_ui()
-    
+        print("🚀 Space Defender Started!")
+        print("Controls: WASD/Arrows to move, Space to shoot")
+        print("Press ESC to quit")
+
     def create_bullet(self, x, y, velocity_y, tag, color):
-        """Create a bullet object"""
         bullet = GameObject(f"Bullet_{random.randint(1000, 9999)}", "circle")
         bullet.position = (x, y)
         bullet.set_property("radius", 3)
         bullet.set_property("color", color)
-        bullet.velocity = (0, velocity_y)
         bullet.add_tag(tag)
-        bullet.collision_enabled = True
-        
+
+        bullet_controller = BulletController(bullet, velocity_y)
+        self.bullets.append({'object': bullet, 'controller': bullet_controller})
         self.game_scene.add_object(bullet)
+
         return bullet
-    
+
     def spawn_enemy(self):
-        """Spawn a single enemy"""
         enemy = GameObject(f"Enemy_{self.enemies_created}", "sprite")
-        
+
         if not enemy.set_sprite("enemy"):
             enemy.object_type = "rectangle"
             enemy.set_property("width", 35)
             enemy.set_property("height", 25)
             enemy.set_property("color", (255, 100, 100))
-        
+
         enemy.position = (random.randint(50, SCREEN_WIDTH - 50), -30)
-        enemy.velocity = (random.randint(-50, 50), ENEMY_SPEED)
         enemy.add_tag("enemy")
-        enemy.set_property("health", 50)
-        enemy.collision_enabled = True
-        
+
+        enemy_controller = EnemyController(enemy)
+        self.enemies.append({'object': enemy, 'controller': enemy_controller})
         self.game_scene.add_object(enemy)
         self.enemies_created += 1
-    
-    def update_game(self):
-        """Handle game logic each frame"""
-        if self.game_over:
-            # Check for restart
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_r]:
-                self.restart_game()
-            return
-        
-        # Handle shooting
-        keys = pygame.key.get_pressed()
-        if hasattr(self, 'last_shoot_time'):
-            current_time = pygame.time.get_ticks()
-            if keys[pygame.K_SPACE] and current_time - self.last_shoot_time > 200:
-                pos = self.player.position
-                self.create_bullet(pos[0] + 20, pos[1], -BULLET_SPEED, "player_bullet", (255, 255, 100))
-                self.last_shoot_time = current_time
-        else:
-            self.last_shoot_time = pygame.time.get_ticks()
-        
-        # Spawn enemies
-        self.enemy_spawn_timer += 1/60
-        if self.enemy_spawn_timer > 2:
-            self.spawn_enemy()
-            self.enemy_spawn_timer = 0
-        
-        # Enemy shooting
-        for obj_name, obj in list(self.game_scene.objects.items()):
-            if obj.has_tag("enemy") and random.random() < 0.005:
-                pos = obj.position
-                self.create_bullet(pos[0] + 17, pos[1] + 25, 200, "enemy_bullet", (255, 100, 100))
-        
-        # Handle collisions
-        self.handle_collisions()
-        
-        # Check game over
-        if self.player.get_property("health") <= 0:
-            self.show_game_over()
-    
-    def handle_collisions(self):
-        """Handle all collision detection"""
-        # Get all bullets
-        player_bullets = [obj for obj in self.game_scene.objects.values() if obj.has_tag("player_bullet")]
-        enemy_bullets = [obj for obj in self.game_scene.objects.values() if obj.has_tag("enemy_bullet")]
-        enemies = [obj for obj in self.game_scene.objects.values() if obj.has_tag("enemy")]
-        
-        # Player bullets vs enemies
-        for bullet in player_bullets:
-            for enemy in enemies:
-                if bullet.is_colliding_with(enemy):
-                    bullet.destroyed = True
-                    enemy.destroyed = True
-                    self.score += 100
-                    self.create_explosion(enemy.position[0], enemy.position[1])
-                    break
-        
-        # Enemy bullets vs player
-        for bullet in enemy_bullets:
-            if bullet.is_colliding_with(self.player):
-                bullet.destroyed = True
-                current_health = self.player.get_property("health")
-                self.player.set_property("health", current_health - 20)
-        
-        # Enemies vs player
-        for enemy in enemies:
-            if enemy.is_colliding_with(self.player):
-                enemy.destroyed = True
-                current_health = self.player.get_property("health")
-                self.player.set_property("health", current_health - 30)
-    
+
     def create_explosion(self, x, y):
-        """Create explosion effect"""
         explosion = GameObject(f"Explosion_{random.randint(1000, 9999)}", "circle")
         explosion.position = (x, y)
         explosion.set_property("radius", 10)
         explosion.set_property("color", (255, 150, 0))
-        
-        explosion.script_code = """
-var timer = 0.5;
-var startRadius = 10;
 
-function update() {
-    timer -= 0.016;
-    var radius = startRadius * (1 + (0.5 - timer) * 3);
-    setProperty("radius", radius);
-    
-    if (timer <= 0) {
-        destroy();
-    }
-}
-"""
+        explosion_controller = ExplosionController(explosion)
+        self.explosions.append({'object': explosion, 'controller': explosion_controller})
         self.game_scene.add_object(explosion)
-    
-    def show_game_over(self):
-        """Display game over screen"""
-        self.game_over = True
-        print(f"GAME OVER! Final Score: {self.score}")
-    
+
+    def check_collision(self, obj1, obj2):
+        x1, y1 = obj1.position
+        x2, y2 = obj2.position
+        distance = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+        return distance < 30
+
+    def handle_collisions(self):
+        # Player bullets vs enemies
+        for bullet_data in self.bullets[:]:
+            if bullet_data['object'].has_tag("player_bullet"):
+                for enemy_data in self.enemies[:]:
+                    if self.check_collision(bullet_data['object'], enemy_data['object']):
+                        bullet_data['controller'].destroyed = True
+                        enemy_data['controller'].take_damage(50)
+                        self.score += 100
+                        self.create_explosion(enemy_data['object'].position[0], enemy_data['object'].position[1])
+                        break
+
+        # Enemy bullets vs player
+        for bullet_data in self.bullets[:]:
+            if bullet_data['object'].has_tag("enemy_bullet"):
+                if self.check_collision(bullet_data['object'], self.player):
+                    bullet_data['controller'].destroyed = True
+                    self.player_controller.take_damage(20)
+
+        # Enemies vs player
+        for enemy_data in self.enemies[:]:
+            if self.check_collision(enemy_data['object'], self.player):
+                enemy_data['controller'].destroyed = True
+                self.player_controller.take_damage(30)
+
+    def check_game_over(self):
+        if self.player_controller.health <= 0:
+            self.game_over = True
+            print(f"GAME OVER! Final Score: {self.score}")
+            print("Press R to restart or ESC to quit")
+
     def restart_game(self):
-        """Restart the game"""
-        # Clear scene
-        self.game_scene.objects.clear()
-        
-        # Reset state
+        self.bullets.clear()
+        self.enemies.clear()
+        self.explosions.clear()
+
         self.score = 0
         self.game_over = False
         self.enemy_spawn_timer = 0
         self.enemies_created = 0
-        
-        # Recreate game objects
-        self.create_player()
-        self.create_enemies()
-        self.create_ui()
-    
+
+        self.player_controller.health = 100
+        self.player.position = (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 100)
+
+        print("Game restarted!")
+
     def run(self):
-        """Start the game"""
         clock = pygame.time.Clock()
-        
-        print("🚀 Space Defender Started!")
-        print("Controls: WASD/Arrows to move, Space to shoot")
-        print("Press ESC to quit, R to restart when game over")
-        
+
         while self.engine.running:
-            # Handle quit
-            events = pygame.event.get()
-            for event in events:
+            delta_time = clock.tick(60) / 1000.0
+
+            # Handle events
+            for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.engine.running = False
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.engine.running = False
-            
-            # Update game
-            self.update_game()
-            
-            # Run engine frame
-            self.engine.run_frame()
-            
-            # Display info
-            if hasattr(self, 'display_timer'):
-                self.display_timer += 1/60
+                    elif event.key == pygame.K_r and self.game_over:
+                        self.restart_game()
+
+            if self.game_over:
+                self.engine.update(delta_time)
+                self.engine.render()
+                continue
+
+            keys = self.engine.get_keys()
+
+            # Update player
+            self.player_controller.update(keys, delta_time)
+
+            # Handle player shooting
+            if self.player_controller.should_shoot:
+                x, y = self.player.position
+                self.create_bullet(x + 20, y, -BULLET_SPEED, "player_bullet", (255, 255, 100))
+                self.player_controller.should_shoot = False
+
+            # Spawn enemies
+            self.enemy_spawn_timer += delta_time
+            if self.enemy_spawn_timer > 2:
+                self.spawn_enemy()
+                self.enemy_spawn_timer = 0
+
+            # Update enemies
+            for enemy_data in self.enemies[:]:
+                enemy_data['controller'].update(delta_time)
+
+                if enemy_data['controller'].should_shoot:
+                    x, y = enemy_data['object'].position
+                    self.create_bullet(x + 17, y + 25, 200, "enemy_bullet", (255, 100, 100))
+                    enemy_data['controller'].should_shoot = False
+
+                if enemy_data['controller'].destroyed:
+                    self.game_scene.remove_object(enemy_data['object'])
+                    self.enemies.remove(enemy_data)
+
+            # Update bullets
+            for bullet_data in self.bullets[:]:
+                bullet_data['controller'].update(delta_time)
+                if bullet_data['controller'].destroyed:
+                    self.game_scene.remove_object(bullet_data['object'])
+                    self.bullets.remove(bullet_data)
+
+            # Update explosions
+            for explosion_data in self.explosions[:]:
+                explosion_data['controller'].update(delta_time)
+                if explosion_data['controller'].destroyed:
+                    self.game_scene.remove_object(explosion_data['object'])
+                    self.explosions.remove(explosion_data)
+
+            # Handle collisions
+            self.handle_collisions()
+
+            # Check game over
+            self.check_game_over()
+
+            # Display score periodically
+            if hasattr(self, 'score_timer'):
+                self.score_timer += delta_time
             else:
-                self.display_timer = 0
-            
-            if self.display_timer > 1:  # Every second
-                health = self.player.get_property("health") if not self.game_over else 0
-                print(f"Score: {self.score} | Health: {health}")
-                self.display_timer = 0
-            
-            clock.tick(60)
-        
+                self.score_timer = 0
+
+            if self.score_timer > 1:
+                print(f"Score: {self.score} | Health: {self.player_controller.health}")
+                self.score_timer = 0
+
+            # Update engine
+            self.engine.update(delta_time)
+            self.engine.render()
+
         self.engine.cleanup()
 
-# Create and run the game
 if __name__ == "__main__":
     game = SpaceDefender()
     game.run()
