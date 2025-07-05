@@ -233,7 +233,7 @@ Axarion Engine was born from the passion of Czech indie developers who understan
 
 ## 📜 License & Attribution
 
-Axarion Engine is released under the MIT License. While attribution is not required, we appreciate recognition of our work. See our [Attribution Guide](DOCS/Axarion_Attribution_Guide.md) for optional ways to credit the engine.
+Axarion Engine is released under the GPL License. While attribution is not required, we appreciate recognition of our work. See our [Attribution Guide](DOCS/Axarion_Attribution_Guide.md) for optional ways to credit the engine.
 
 ## 🚀 Get Started Today
 
