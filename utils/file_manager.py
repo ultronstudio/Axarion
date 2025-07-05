@@ -20,10 +20,10 @@ class FileManager:
     def __init__(self, base_path: str = "."):
         self.base_path = Path(base_path).resolve()
         self.project_extensions = [".axp", ".json"]
-        self.script_extensions = [".ax", ".axs"]
+        self.script_extensions = [".py", ".txt"]
         self.supported_formats = {
             "project": [".axp", ".json"],
-            "script": [".ax", ".axs", ".txt"],
+            "script": [".py", ".txt"],
             "image": [".png", ".jpg", ".jpeg", ".gif", ".bmp"],
             "audio": [".wav", ".mp3", ".ogg", ".m4a"]
         }
