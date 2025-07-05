@@ -1,6 +1,5 @@
 """
 Axarion Studio 
-code editor for Axarion Engine with real-time error checking
 """
 
 import tkinter as tk
@@ -17,8 +16,6 @@ import sys
 
 # Import Axarion Engine components for error checking
 try:
-    from scripting.axscript_parser import AXScriptParser
-    from scripting.axscript_interpreter import AXScriptInterpreter
     from engine.core import AxarionEngine
     from utils.file_manager import FileManager
 except ImportError as e:
@@ -47,10 +44,7 @@ class SyntaxHighlighter:
         self.text_widget.tag_configure("python_function", foreground="#FFD700")
         self.text_widget.tag_configure("python_number", foreground="#DDA0DD")
 
-        # AXScript keywords
-        self.text_widget.tag_configure("axscript_keyword", foreground="#FFA500")
-        self.text_widget.tag_configure("axscript_function", foreground="#40E0D0")
-        self.text_widget.tag_configure("axscript_builtin", foreground="#FF69B4")
+        # AXScript support removed
 
         # Error highlighting
         self.text_widget.tag_configure("error", background="#FF4444", foreground="white")
@@ -104,51 +98,15 @@ class SyntaxHighlighter:
                 self.text_widget.tag_add("python_number", start, end)
 
     def highlight_axscript(self, content: str):
-        """Highlight AXScript syntax"""
-        axscript_keywords = [
-            "function", "var", "if", "else", "while", "for", "return",
-            "true", "false", "null", "class"
-        ]
-
-        axscript_builtins = [
-            "move", "rotate", "keyPressed", "print", "setProperty", "getProperty",
-            "playSound", "createExplosion", "distance", "random", "time"
-        ]
-
-        lines = content.split('\n')
-        for line_num, line in enumerate(lines):
-            # Keywords
-            for keyword in axscript_keywords:
-                pattern = r'\b' + re.escape(keyword) + r'\b'
-                for match in re.finditer(pattern, line):
-                    start = f"{line_num + 1}.{match.start()}"
-                    end = f"{line_num + 1}.{match.end()}"
-                    self.text_widget.tag_add("axscript_keyword", start, end)
-
-            # Built-in functions
-            for builtin in axscript_builtins:
-                pattern = r'\b' + re.escape(builtin) + r'\b'
-                for match in re.finditer(pattern, line):
-                    start = f"{line_num + 1}.{match.start()}"
-                    end = f"{line_num + 1}.{match.end()}"
-                    self.text_widget.tag_add("axscript_builtin", start, end)
-
-            # Functions
-            func_match = re.search(r'function\s+(\w+)', line)
-            if func_match:
-                start = f"{line_num + 1}.{func_match.start(1)}"
-                end = f"{line_num + 1}.{func_match.end(1)}"
-                self.text_widget.tag_add("axscript_function", start, end)
+        """AXScript support has been removed"""
+        pass
 
 class ErrorChecker:
     """Real-time error checking for Python and AXScript"""
 
     def __init__(self):
-        self.axscript_parser = None
-        try:
-            self.axscript_parser = AXScriptParser()
-        except:
-            pass
+        # AXScript support removed
+        pass
 
     def check_python_syntax(self, code: str) -> List[Dict]:
         """Check Python syntax for errors"""
@@ -193,52 +151,8 @@ class ErrorChecker:
         return errors
 
     def check_axscript_syntax(self, code: str) -> List[Dict]:
-        """Check AXScript syntax for errors"""
-        errors = []
-
-        if not self.axscript_parser:
-            return [{'type': 'warning', 'line': 1, 'message': 'AXScript parser not available', 'column': 0}]
-
-        try:
-            self.axscript_parser.parse(code)
-        except Exception as e:
-            error_msg = str(e)
-            line_num = 1
-
-            # Try to extract line number from error message
-            line_match = re.search(r'line (\d+)', error_msg)
-            if line_match:
-                line_num = int(line_match.group(1))
-
-            errors.append({
-                'type': 'error',
-                'line': line_num,
-                'message': f"AXScript Error: {error_msg}",
-                'column': 0
-            })
-
-        # Check for common AXScript issues
-        lines = code.split('\n')
-        for i, line in enumerate(lines, 1):
-            # Check for missing semicolons (common issue)
-            stripped = line.strip()
-            if (stripped and 
-                not stripped.startswith('//') and 
-                not stripped.startswith('function') and
-                not stripped.startswith('if') and
-                not stripped.startswith('while') and
-                not stripped.startswith('}') and
-                not stripped.endswith(';') and
-                not stripped.endswith('{') and
-                '=' in stripped):
-                errors.append({
-                    'type': 'warning',
-                    'line': i,
-                    'message': "Missing semicolon",
-                    'column': len(line)
-                })
-
-        return errors
+        """AXScript support has been removed"""
+        return []
 
 class FileExplorer:
     """File explorer panel for project management"""
@@ -320,8 +234,6 @@ class FileExplorer:
         ext = os.path.splitext(filename)[1].lower()
         icons = {
             '.py': '🐍',
-            '.ax': '⚡',
-            '.axs': '⚡',
             '.json': '📋',
             '.png': '🖼️',
             '.jpg': '🖼️',
@@ -446,6 +358,7 @@ class GameTemplateManager:
         self.templates = {
             "Basic Game": '''from engine.core import AxarionEngine
 from engine.game_object import GameObject
+import pygame
 
 # Create engine
 engine = AxarionEngine(800, 600, "My Game")
@@ -460,25 +373,21 @@ player = GameObject("Player", "rectangle")
 player.position = (100, 100)
 player.set_property("color", (100, 200, 255))
 
-# Add movement script
-player.script_code = """
-var speed = 200;
-
-function update() {
-    if (keyPressed("ArrowLeft")) {
-        move(-speed * 0.016, 0);
-    }
-    if (keyPressed("ArrowRight")) {
-        move(speed * 0.016, 0);
-    }
-}
-"""
+# Python-based movement
+def update_player():
+    keys = pygame.key.get_pressed()
+    speed = 200
+    if keys[pygame.K_LEFT]:
+        player.position = (player.position[0] - speed * 0.016, player.position[1])
+    if keys[pygame.K_RIGHT]:
+        player.position = (player.position[0] + speed * 0.016, player.position[1])
 
 scene.add_object(player)
 engine.run()''',
 
             "Platformer Game": '''from engine.core import AxarionEngine
 from engine.game_object import GameObject
+import pygame
 
 # Create platformer game
 engine = AxarionEngine(800, 600, "Platformer")
@@ -493,23 +402,16 @@ player.position = (100, 400)
 player.set_property("color", (100, 200, 255))
 player.set_property("mass", 1.0)
 
-# Platformer movement
-player.script_code = """
-var speed = 300;
-var jumpForce = 400;
-
-function update() {
-    if (keyPressed("ArrowLeft")) {
-        applyForce(-speed * 0.016, 0);
-    }
-    if (keyPressed("ArrowRight")) {
-        applyForce(speed * 0.016, 0);
-    }
-    if (keyJustPressed("Space") && isOnGround()) {
-        jump(jumpForce);
-    }
-}
-"""
+# Python-based platformer movement
+def update_platformer():
+    keys = pygame.key.get_pressed()
+    speed = 300
+    if keys[pygame.K_LEFT]:
+        player.velocity = (player.velocity[0] - speed * 0.016, player.velocity[1])
+    if keys[pygame.K_RIGHT]:
+        player.velocity = (player.velocity[0] + speed * 0.016, player.velocity[1])
+    if keys[pygame.K_SPACE]:
+        player.velocity = (player.velocity[0], -400)
 
 # Create platform
 platform = GameObject("Platform", "rectangle")
@@ -520,37 +422,7 @@ platform.set_property("color", (100, 100, 100))
 
 scene.add_object(player)
 scene.add_object(platform)
-engine.run()''',
-
-            "AXScript Functions": '''// Common AXScript functions for game objects
-
-var speed = 150;
-var health = 100;
-
-function update() {
-    // Movement
-    if (keyPressed("w")) move(0, -speed * 0.016);
-    if (keyPressed("s")) move(0, speed * 0.016);
-    if (keyPressed("a")) move(-speed * 0.016, 0);
-    if (keyPressed("d")) move(speed * 0.016, 0);
-
-    // Shooting
-    if (keyJustPressed("Space")) {
-        var mousePos = getMousePos();
-        createBullet(mousePos.x, mousePos.y, 400);
-    }
-
-    // Health system
-    if (health <= 0) {
-        createExplosion(getProperty("position").x, getProperty("position").y);
-        destroy();
-    }
-}
-
-function takeDamage(amount) {
-    health -= amount;
-    print("Health: " + health);
-}'''
+engine.run()'''
         }
 
     def get_templates(self):
@@ -886,7 +758,6 @@ class AxarionStudio:
         help_menu.add_command(label="⚡ Quick Reference", command=self.show_quick_reference)
         help_menu.add_command(label="🎮 Complete Game Tutorial", command=self.show_complete_tutorial)
         help_menu.add_separator()
-        help_menu.add_command(label="⚡ AXScript Documentation", command=self.show_axscript_docs)
         help_menu.add_command(label="🔧 Axarion Engine Guide", command=self.show_engine_docs)
         help_menu.add_separator()
         help_menu.add_command(label="❤️ Attribution Guide", command=self.show_attribution_guide)
@@ -915,8 +786,6 @@ class AxarionStudio:
 
         if self.current_file_type == 'python':
             self.highlighter.highlight_python(content)
-        elif self.current_file_type == 'axscript':
-            self.highlighter.highlight_axscript(content)
 
     def on_key_press(self, event):
         """Handle key press for auto-completion"""
@@ -999,7 +868,6 @@ class AxarionStudio:
             title="Open File",
             filetypes=[
                 ("Python files", "*.py"),
-                ("AXScript files", "*.ax *.axs"),
                 ("All files", "*.*")
             ]
         )
@@ -1060,7 +928,6 @@ class AxarionStudio:
             defaultextension=".py",
             filetypes=[
                 ("Python files", "*.py"),
-                ("AXScript files", "*.ax"),
                 ("All files", "*.*")
             ]
         )
@@ -1077,8 +944,6 @@ class AxarionStudio:
         ext = os.path.splitext(file_path)[1].lower()
         if ext == '.py':
             return 'python'
-        elif ext in ['.ax', '.axs']:
-            return 'axscript'
         else:
             return 'text'
 
@@ -1101,13 +966,9 @@ class AxarionStudio:
         """Start real-time error checking thread"""
         def check_errors():
             while True:
-                if self.current_file_type in ['python', 'axscript']:
+                if self.current_file_type == 'python':
                     content = self.code_editor.get('1.0', tk.END)
-
-                    if self.current_file_type == 'python':
-                        errors = self.error_checker.check_python_syntax(content)
-                    else:
-                        errors = self.error_checker.check_axscript_syntax(content)
+                    errors = self.error_checker.check_python_syntax(content)
 
                     # Update UI in main thread
                     self.root.after(0, lambda: self.error_panel.update_errors(errors))
@@ -1197,38 +1058,6 @@ print("Assets loaded successfully!")
                 template_window.destroy()
 
         ttk.Button(template_window, text="Insert Template", command=insert_selected).pack(pady=5)
-
-    def show_axscript_docs(self):
-        """Show AXScript documentation"""
-        docs = """AXScript Documentation
-
-Basic Syntax:
-- Variables: var name = value;
-- Functions: function name() { }
-- Comments: // single line
-
-Built-in Functions:
-- move(x, y) - Move object
-- rotate(angle) - Rotate object
-- keyPressed(key) - Check if key is pressed
-- print(message) - Print to console
-- playSound(name) - Play sound effect
-- createExplosion(x, y) - Create explosion
-- distance(x1, y1, x2, y2) - Calculate distance
-
-Game Object Functions:
-- setProperty(name, value) - Set object property
-- getProperty(name) - Get object property
-- addTag(tag) - Add tag to object
-- hasTag(tag) - Check if object has tag
-
-Physics Functions:
-- applyForce(x, y) - Apply force to object
-- jump(force) - Make object jump
-- isOnGround() - Check if on ground
-"""
-
-        messagebox.showinfo("AXScript Documentation", docs)
 
     def show_engine_docs(self):
         """Show engine documentation"""
@@ -2110,7 +1939,6 @@ engine.initialize(**engine_config)
     # Version information
     STUDIO_VERSION = "1.0"
     ENGINE_VERSION = "0.7.5"
-    AXSCRIPT_VERSION = "1.0"
     BUILD_DATE = "2025-06-27"
 
     def show_build_settings(self):
@@ -2208,7 +2036,6 @@ engine.initialize(**engine_config)
 Version Information:
 • Studio Version: {self.STUDIO_VERSION}
 • Engine Version: {self.ENGINE_VERSION}
-• AXScript Version: {self.AXSCRIPT_VERSION}
 • Build Date: {self.BUILD_DATE}
 
 Core Features:
@@ -2217,7 +2044,7 @@ Core Features:
 • 🎨 Advanced syntax highlighting
 • 📁 Comprehensive file explorer
 • ▶️ Integrated game runner
-• 📜 Full AXScript support
+• 🐍 Full Python support
 • 🔧 Build system with dependency management
 
 Build & Distribution:
@@ -2335,7 +2162,7 @@ Created with ❤️ for the game development community"""
                        variable=engine_var).pack(anchor=tk.W, padx=5, pady=2)
 
         scripting_var = tk.BooleanVar(value=self.build_settings["include_scripting"])
-        ttk.Checkbutton(options_frame, text="📜 Include AXScript system", 
+        ttk.Checkbutton(options_frame, text="Include utilities", 
                        variable=scripting_var).pack(anchor=tk.W, padx=5, pady=2)
 
         utils_var = tk.BooleanVar(value=self.build_settings["include_utils"])
@@ -2592,10 +2419,10 @@ Created with ❤️ for the game development community"""
                         self.root.after(0, lambda: self.build_log_append("✅ Including Axarion Engine"))
 
                 if include_scripting:
-                    scripting_path = os.path.join(project_path, "scripting")
+                    scripting_path = os.path.join(project_path, "utils")
                     if os.path.exists(scripting_path):
-                        args.extend(["--add-data", f"{scripting_path}{os.pathsep}scripting"])
-                        self.root.after(0, lambda: self.build_log_append("✅ Including AXScript system"))
+                        args.extend(["--add-data", f"{scripting_path}{os.pathsep}utils"])
+                        self.root.after(0, lambda: self.build_log_append("✅ Including utilities"))
 
                 if include_utils:
                     utils_path = os.path.join(project_path, "utils")
@@ -2715,9 +2542,9 @@ Created with ❤️ for the game development community"""
                 datas.append("('engine', 'engine')")
 
         if include_scripting:
-            scripting_path = os.path.join(project_path, "scripting")
+            scripting_path = os.path.join(project_path, "utils")
             if os.path.exists(scripting_path):
-                datas.append("('scripting', 'scripting')")
+                datas.append("('utils', 'utils')")
 
         if include_utils:
             utils_path = os.path.join(project_path, "utils")
