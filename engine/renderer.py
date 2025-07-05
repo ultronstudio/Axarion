@@ -243,13 +243,31 @@ class Renderer:
         self.render_calls += 1
     
     def draw_game_object(self, game_object: GameObject):
-        """Draw a game object with batching support"""
+        """Draw a game object with advanced optimizations"""
         if not game_object.visible or game_object.destroyed:
             return
         
-        # Frustum culling
-        if self.enable_frustum_culling and not self.is_in_camera_bounds(game_object):
-            return
+        # NOVÁ OPTIMALIZACE: Advanced frustum culling
+        if self.enable_frustum_culling:
+            if hasattr(game_object, 'get_bounds_cached'):
+                bounds = game_object.get_bounds_cached()
+            else:
+                bounds = game_object.get_bounds()
+                
+            if not self._is_bounds_in_camera(bounds):
+                if hasattr(self, 'objects_culled'):
+                    self.objects_culled += 1
+                return
+        
+        # NOVÁ OPTIMALIZACE: Distance-based LOD
+        camera_center_x = self.camera_x + self.width / 2
+        camera_center_y = self.camera_y + self.height / 2
+        obj_x, obj_y = game_object.position
+        
+        distance_sq = (obj_x - camera_center_x)**2 + (obj_y - camera_center_y)**2
+        
+        # Snížení detailů pro vzdálené objekty
+        use_simplified_rendering = distance_sq > 200000  # ~447 pixels
         
         # Get layer for rendering order
         layer = getattr(game_object, 'layer', 0)
@@ -620,9 +638,53 @@ class Renderer:
         
         return rotated_points
 
+    def _is_bounds_in_camera(self, bounds):
+        """Optimalizovaná kontrola, zda jsou bounds v kameře"""
+        cam_left = self.camera_x
+        cam_right = self.camera_x + self.width
+        cam_top = self.camera_y  
+        cam_bottom = self.camera_y + self.height
+        
+        obj_left, obj_top, obj_right, obj_bottom = bounds
+        
+        return not (obj_right < cam_left or obj_left > cam_right or 
+                   obj_bottom < cam_top or obj_top > cam_bottom)
+
+    def enable_performance_mode(self):
+        """Zapni výkonnostní režim rendereru"""
+        self.enable_frustum_culling = True
+        self.enable_sprite_batching = True
+        self.enable_antialiasing = False
+        self.particle_limit = 100
+        self.max_batch_size = 50
+
+    def enable_quality_mode(self):
+        """Zapni kvalitní režim rendereru"""
+        self.enable_frustum_culling = False
+        self.enable_sprite_batching = False
+        self.enable_antialiasing = True
+        self.particle_limit = 1000
+        self.max_batch_size = 200
+
+    def get_performance_stats(self):
+        """Získej statistiky výkonu rendereru"""
+        return {
+            "render_calls": self.render_calls,
+            "objects_rendered": self.objects_rendered,
+            "objects_culled": getattr(self, 'objects_culled', 0),
+            "camera_x": self.camera_x,
+            "camera_y": self.camera_y
+        }
+
     def cleanup(self):
         """Clean up renderer resources"""
-        pass
+        # NOVÁ OPTIMALIZACE: Clear caches
+        if hasattr(self, 'sprite_batches'):
+            self.sprite_batches.clear()
+        if hasattr(self, 'render_cache'):
+            self.render_cache.clear()
+        if hasattr(self, 'layers'):
+            self.layers.clear()
     
     # UNLIMITED RENDERING METHODS
     

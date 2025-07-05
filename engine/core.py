@@ -35,31 +35,35 @@ class AxarionEngine:
         self.total_time = 0.0
         self.frame_count = 0
         self.accumulated_time = 0.0
+        
+        # NOVÉ OPTIMALIZACE VÝKONU
+        self.performance_mode = "auto"  # auto, performance, quality
+        self.object_pool = {}  # Pooling objektů pro lepší výkon
+        self.culling_enabled = True
+        self.batch_rendering = True
+        self.adaptive_fps = True
+        self.frame_skip_enabled = True
+        self.max_objects_per_frame = 1000
+        
+        # Pokročilé cache systémy
+        self.render_cache = {}
+        self.collision_cache = {}
+        self.spatial_grid = {}
+        self.dirty_regions = []
+        
         self.performance_stats = {
             "fps": 0,
             "frame_time": 0,
             "objects_rendered": 0,
             "physics_time": 0,
-            "render_time": 0
+            "render_time": 0,
+            "objects_culled": 0,
+            "cache_hits": 0,
+            "pool_reuses": 0
         }
 
-        # Unlimited game development features
-        self.game_mode = "unlimited"  # unlimited, platformer, rpg, shooter, puzzle, racing
-        self.custom_systems = {}
-        self.unlimited_objects = True
-        self.unlimited_scenes = True
-        self.unlimited_assets = True
-
-        # Advancedgame features for any genre
-        self.network_enabled = False
-        self.multiplayer_support = False
-        self.save_system = {}
-        self.achievement_system = []
-        self.dialog_system = {}
-        self.inventory_systems = {}
-        self.quest_system = {}
-        self.level_editor = None
-        self.mod_support = True
+        # Pure engine mode - no helper systems
+        self.game_mode = "manual"  # Users must code everything manually
 
         # Unlimited rendering capabilities
         self.layered_rendering = True
@@ -234,7 +238,7 @@ class AxarionEngine:
         self.performance_stats["last_fps_update"] = time.time()
 
     def update(self):
-        """High-performance engine update with proper timing and error protection"""
+        """High-performance engine update with advanced optimizations"""
         if not self.running or not self.initialized:
             return
 
@@ -242,9 +246,19 @@ class AxarionEngine:
             import time
             frame_start = time.perf_counter()
 
+            # NOVÁ OPTIMALIZACE: Adaptivní FPS
+            if self.adaptive_fps:
+                self._adjust_target_fps()
+
             # Calculate delta time with time scale
             raw_delta = self.clock.tick(self.target_fps) / 1000.0
-            self.delta_time = raw_delta * self.time_scale
+            
+            # NOVÁ OPTIMALIZACE: Frame skipping pro náročné hry
+            if self.frame_skip_enabled and raw_delta > 1.0/30.0:  # Pokud FPS < 30
+                self.delta_time = 1.0/30.0 * self.time_scale  # Limituj delta time
+            else:
+                self.delta_time = raw_delta * self.time_scale
+                
             self.total_time += raw_delta
             self.frame_count += 1
 
@@ -262,6 +276,9 @@ class AxarionEngine:
             if self.game_state == "paused":
                 return
 
+            # NOVÁ OPTIMALIZACE: Update spatial grid pro kolize
+            self._update_spatial_grid()
+
             # Update input system
             if self.input_manager:
                 try:
@@ -271,14 +288,14 @@ class AxarionEngine:
 
             # Update registered systems in priority order
             try:
-                self._update_systems(self.delta_time)
+                self._update_systems_optimized(self.delta_time)
             except Exception as e:
                 self._log_error(f"Systems update failed: {e}")
 
-            # Update current scene
+            # NOVÁ OPTIMALIZACE: Selective scene update
             if self.current_scene and self.current_scene.active:
                 try:
-                    self.current_scene.update(self.delta_time)
+                    self._update_scene_optimized(self.delta_time)
                 except Exception as e:
                     self._log_error(f"Scene update failed: {e}")
 
@@ -294,6 +311,9 @@ class AxarionEngine:
                 self._process_messages()
             except Exception as e:
                 self._log_error(f"Message processing failed: {e}")
+
+            # NOVÁ OPTIMALIZACE: Cleanup unused objects
+            self._cleanup_object_pools()
 
             # Update performance stats
             frame_time = time.perf_counter() - frame_start
@@ -644,6 +664,143 @@ class AxarionEngine:
                     results.append(obj)
         return results
 
+    # NOVÉ OPTIMALIZAČNÍ METODY
+    def _adjust_target_fps(self):
+        """Adaptivní FPS podle výkonu"""
+        if hasattr(self, 'performance_stats'):
+            current_fps = self.performance_stats.get('fps', 60)
+            
+            if self.performance_mode == "auto":
+                if current_fps < 45:
+                    self.target_fps = max(30, self.target_fps - 5)
+                elif current_fps > 55 and self.target_fps < 60:
+                    self.target_fps = min(60, self.target_fps + 5)
+            elif self.performance_mode == "performance":
+                self.target_fps = 30
+            elif self.performance_mode == "quality":
+                self.target_fps = 60
+
+    def _update_spatial_grid(self):
+        """Prostorová mřížka pro rychlejší kolize"""
+        if not self.current_scene:
+            return
+            
+        grid_size = 64
+        self.spatial_grid.clear()
+        
+        for obj in self.current_scene.objects:
+            if not obj.active or obj.destroyed:
+                continue
+                
+            bounds = obj.get_bounds()
+            grid_x = int(bounds[0] // grid_size)
+            grid_y = int(bounds[1] // grid_size)
+            
+            key = f"{grid_x},{grid_y}"
+            if key not in self.spatial_grid:
+                self.spatial_grid[key] = []
+            self.spatial_grid[key].append(obj)
+
+    def _update_systems_optimized(self, delta_time):
+        """Optimalizovaný update systémů"""
+        # Pouze aktivní systémy
+        systems_to_update = [
+            ('physics', self.physics),
+            ('audio', self.audio_manager)
+        ]
+
+        for system_name, system in systems_to_update:
+            if system and hasattr(system, 'update'):
+                try:
+                    system.update(delta_time)
+                except Exception as e:
+                    self._log_error(f"Error updating {system_name} system: {e}")
+
+        # Update external systems s error handling
+        try:
+            from .animation_system import animation_system
+            from .particle_system import particle_system
+            animation_system.update(delta_time)
+            particle_system.update(delta_time)
+        except ImportError:
+            pass
+
+    def _update_scene_optimized(self, delta_time):
+        """Optimalizovaný update scény"""
+        if not self.current_scene:
+            return
+            
+        # Počítaj pouze aktivní objekty
+        active_objects = [obj for obj in self.current_scene.objects 
+                         if obj.active and not obj.destroyed]
+        
+        # NOVÁ OPTIMALIZACE: Limituj počet objektů na frame
+        if len(active_objects) > self.max_objects_per_frame:
+            # Update pouze část objektů každý frame
+            objects_per_frame = self.max_objects_per_frame
+            start_index = (self.frame_count * objects_per_frame) % len(active_objects)
+            end_index = min(start_index + objects_per_frame, len(active_objects))
+            objects_to_update = active_objects[start_index:end_index]
+        else:
+            objects_to_update = active_objects
+            
+        # Update vybraných objektů
+        for obj in objects_to_update:
+            try:
+                obj.update(delta_time)
+            except Exception as e:
+                self._log_error(f"Error updating object {obj.name}: {e}")
+
+    def _cleanup_object_pools(self):
+        """Čištění object pools"""
+        if self.frame_count % 300 == 0:  # Každých 5 sekund při 60 FPS
+            for pool_name, pool in self.object_pool.items():
+                if hasattr(pool, 'cleanup'):
+                    pool.cleanup()
+
+    def get_object_from_pool(self, object_type):
+        """Získej objekt z pool pro lepší výkon"""
+        if object_type not in self.object_pool:
+            self.object_pool[object_type] = []
+            
+        pool = self.object_pool[object_type]
+        if pool:
+            obj = pool.pop()
+            obj.reset()  # Reset vlastností
+            self.performance_stats['pool_reuses'] += 1
+            return obj
+        else:
+            # Vytvoř nový objekt
+            from .game_object import GameObject
+            return GameObject(f"Pooled_{object_type}", object_type)
+
+    def return_object_to_pool(self, obj):
+        """Vrať objekt do pool"""
+        if obj.object_type not in self.object_pool:
+            self.object_pool[obj.object_type] = []
+            
+        obj.visible = False
+        obj.active = False
+        self.object_pool[obj.object_type].append(obj)
+
+    def set_performance_mode(self, mode):
+        """Nastav výkonnostní režim"""
+        self.performance_mode = mode
+        
+        if mode == "performance":
+            self.culling_enabled = True
+            self.batch_rendering = True
+            self.adaptive_fps = True
+            self.frame_skip_enabled = True
+            self.max_objects_per_frame = 500
+        elif mode == "quality":
+            self.culling_enabled = False
+            self.batch_rendering = False
+            self.adaptive_fps = False
+            self.frame_skip_enabled = False
+            self.max_objects_per_frame = 2000
+        # "auto" zůstává s výchozími hodnotami
+
     def cleanup(self):
         """Comprehensive cleanup of all engine resources"""
         self._log_info("🧹 Cleaning up engine resources...")
@@ -651,6 +808,12 @@ class AxarionEngine:
         try:
             # Stop any running processes
             self.running = False
+
+            # NOVÁ OPTIMALIZACE: Cleanup pools
+            self.object_pool.clear()
+            self.render_cache.clear()
+            self.collision_cache.clear()
+            self.spatial_grid.clear()
 
             # Cleanup subsystems in reverse order
             subsystems = [

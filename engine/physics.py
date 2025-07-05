@@ -158,16 +158,51 @@ class PhysicsSystem:
                     obj2.velocity = (obj2.velocity[0], -abs(obj2.velocity[1]) * obj2.bounce * 0.5)
     
     def check_all_collisions(self, objects: List[GameObject], delta_time: float):
-        """Check and resolve all collisions between objects"""
+        """Optimalized collision detection using spatial partitioning"""
         if not self.collision_enabled:
             return
         
         active_objects = [obj for obj in objects if obj.active and not obj.destroyed and obj.collision_enabled]
         
-        for i, obj1 in enumerate(active_objects):
-            for j, obj2 in enumerate(active_objects[i+1:], i+1):
-                if self.check_collision(obj1, obj2):
-                    self.resolve_collision(obj1, obj2, delta_time)
+        # NOVÁ OPTIMALIZACE: Použij spatial grid pro kolize
+        if hasattr(self, 'spatial_grid') and len(active_objects) > 20:
+            self._check_collisions_spatial_grid(active_objects, delta_time)
+        else:
+            # Původní metoda pro menší počet objektů
+            for i, obj1 in enumerate(active_objects):
+                for j, obj2 in enumerate(active_objects[i+1:], i+1):
+                    if self.check_collision(obj1, obj2):
+                        self.resolve_collision(obj1, obj2, delta_time)
+
+    def _check_collisions_spatial_grid(self, objects: List[GameObject], delta_time: float):
+        """Rychlá detekce kolizí pomocí prostorové mřížky"""
+        grid_size = 64
+        grid = {}
+        
+        # Rozděl objekty do grid
+        for obj in objects:
+            bounds = obj.get_bounds()
+            grid_x = int(bounds[0] // grid_size)
+            grid_y = int(bounds[1] // grid_size)
+            
+            # Objekt může být ve více cells
+            for gx in range(grid_x, int(bounds[2] // grid_size) + 1):
+                for gy in range(grid_y, int(bounds[3] // grid_size) + 1):
+                    key = f"{gx},{gy}"
+                    if key not in grid:
+                        grid[key] = []
+                    grid[key].append(obj)
+        
+        # Zkontroluj kolize pouze v rámci stejných cells
+        checked_pairs = set()
+        for cell_objects in grid.values():
+            for i, obj1 in enumerate(cell_objects):
+                for j, obj2 in enumerate(cell_objects[i+1:], i+1):
+                    pair = (id(obj1), id(obj2))
+                    if pair not in checked_pairs:
+                        checked_pairs.add(pair)
+                        if self.check_collision(obj1, obj2):
+                            self.resolve_collision(obj1, obj2, delta_time)
     
     def check_bounds_collision(self, game_object: GameObject, 
                               bounds: Tuple[float, float, float, float] = None) -> bool:
