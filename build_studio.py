@@ -2,7 +2,6 @@
 #!/usr/bin/env python3
 """
 Interactive Build System for Axarion Studio
-Cross-platform build script with ASCII UI
 """
 
 import os
