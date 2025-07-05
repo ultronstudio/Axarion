@@ -1,4 +1,3 @@
-
 # 🎮 Axarion Engine
 **Professional 2D Game Engine for Code-First Development**
 
@@ -22,7 +21,6 @@ Axarion Engine is a cutting-edge 2D game development framework designed specific
 
 ### 💡 **Developer-Centric Features**
 - **Pure Code Approach**: No complex GUI editors - just clean, readable code
-- **AXScript Integration**: Powerful built-in scripting language
 - **Rapid Prototyping**: From idea to playable demo in minutes
 - **Professional Debugging**: Visual collision bounds, performance profiling, error tracking
 - **Cross-Platform**: Windows, macOS, and Linux support out of the box
@@ -49,20 +47,6 @@ Axarion Engine is a cutting-edge 2D game development framework designed specific
 
 ## 🚀 Quick Start
 
-### Installation & First Run
-```bash
-# Clone and run the physics demo
-git clone [repository-url]
-cd axarion-engine
-python test_fixed_engine.py
-
-# Try the complete asset demo
-python test_assets_demo.py
-
-# Generate sample assets
-python assets/create_sample_assets.py
-```
-
 ### Your First Game (5 Minutes)
 ```python
 from engine.core import AxarionEngine
@@ -85,32 +69,20 @@ player = GameObject("Player", "sprite")
 player.position = (100, 100)
 player.set_sprite("ship")
 
-# Add interactive behavior with AXScript
-player.script_code = """
-var speed = 300;
-var health = 100;
+# Example movement implementation
+player.speed = 300
+def update(self):
+    if engine.input.is_key_pressed("w"):
+        self.position = (self.position[0], self.position[1] - self.speed * engine.delta_time)
+    if engine.input.is_key_pressed("s"):
+        self.position = (self.position[0], self.position[1] + self.speed * engine.delta_time)
+    if engine.input.is_key_pressed("a"):
+        self.position = (self.position[0] - self.speed * engine.delta_time, self.position[1])
+    if engine.input.is_key_pressed("d"):
+        self.position = (self.position[0] + self.speed * engine.delta_time, self.position[1])
 
-function update() {
-    // Smooth movement with WASD
-    if (keyPressed("KeyW")) move(0, -speed * deltaTime);
-    if (keyPressed("KeyS")) move(0, speed * deltaTime);
-    if (keyPressed("KeyA")) move(-speed * deltaTime, 0);
-    if (keyPressed("KeyD")) move(speed * deltaTime, 0);
-    
-    // Shooting system
-    if (keyJustPressed("Space")) {
-        playSound("laser");
-        // Bullet creation logic here
-    }
-}
+player.update = update.__get__(player)
 
-function onCollision(other) {
-    if (other.hasTag("enemy")) {
-        health -= 10;
-        createExplosion(position.x, position.y);
-    }
-}
-"""
 
 # Add to scene and start the game
 scene.add_object(player)
@@ -127,31 +99,31 @@ engine.run()
 | `sprite` | Image-based objects | Characters, items, decorations |
 | `animated_sprite` | Frame-animated objects | Walking characters, spinning coins |
 
-### AXScript Language Features
-```javascript
-// Movement & Physics
-move(dx, dy)                    // Relative movement
-setPosition(x, y)               // Absolute positioning
-applyForce(fx, fy)              // Physics-based forces
-setVelocity(vx, vy)             // Direct velocity control
+### Core Engine Features
+```python
+# Movement & Physics
+player.move(dx, dy)                    # Relative movement
+player.position = (x, y)               # Absolute positioning
+player.apply_force(fx, fy)             # Physics-based forces
+player.velocity = (vx, vy)             # Direct velocity control
 
-// Input Handling
-keyPressed("KeyW")              // Check if key is held
-keyJustPressed("Space")         // Check for single key press
-mouseClicked(0)                 // Left mouse button
-getMousePosition()              // Current mouse coordinates
+# Input Handling
+engine.input.is_key_pressed("w")       # Check if key is held
+engine.input.is_key_just_pressed(" ")  # Check for single key press
+engine.input.is_mouse_clicked(0)       # Left mouse button
+engine.input.get_mouse_position()      # Current mouse coordinates
 
-// Audio & Effects
-playSound("explosion.wav")      // Play sound effect
-playMusic("background.mp3")     // Background music
-createExplosion(x, y)           // Particle explosion
-createTrail(x, y, color)        // Particle trail
+# Audio & Effects
+engine.audio.play_sound("explosion")   # Play sound effect
+engine.audio.play_music("background")  # Background music
+engine.particles.create_explosion(x, y) # Particle explosion
+engine.particles.create_trail(x, y, color) # Particle trail
 
-// Game Logic
-findObjectsByTag("enemy")       // Find objects by tag
-isCollidingWith("Player")       // Collision detection
-distance(x1, y1, x2, y2)        // Calculate distance
-createObject("enemy", x, y)     // Spawn new objects
+# Game Logic
+scene.find_objects_by_tag("enemy")     # Find objects by tag
+player.is_colliding_with(enemy)        # Collision detection
+engine.math.distance(x1, y1, x2, y2)   # Calculate distance
+scene.create_object("enemy", x, y)     # Spawn new objects
 ```
 
 ## 📁 Project Structure
@@ -164,7 +136,7 @@ your-game/
 │   ├── animations/             # Frame animations
 │   └── fonts/                  # Typography
 ├── engine/                     # Core engine files
-├── scripting/                  # AXScript interpreter
+├── utils/                      # Utility modules
 ├── DOCS/                       # Documentation
 ├── main.py                     # Your game entry point
 └── README.md                   # Project documentation
@@ -228,14 +200,14 @@ Axarion Engine was born from the passion of Czech indie developers who understan
 
 ## 📜 License & Attribution
 
-Axarion Engine is released under the GPL License. While attribution is not required, we appreciate recognition of our work. See our [Attribution Guide](DOCS/Axarion_Attribution_Guide.md) for optional ways to credit the engine.
+Axarion Engine is released under the MIT License. While attribution is not required, we appreciate recognition of our work. See our [Attribution Guide](DOCS/Axarion_Attribution_Guide.md) for optional ways to credit the engine.
 
-Join thousands of developers who've chosen Axarion Engine for their creative projects. From weekend game jams to commercial releases, Axarion provides the power and flexibility you need.
+## 🚀 Get Started Today
+
+Ready to create your next masterpiece? Join thousands of developers who've chosen Axarion Engine for their creative projects. From weekend game jams to commercial releases, Axarion provides the power and flexibility you need.
 
 **Axarion Engine - Where Code Meets Creativity** 🎮✨
 
 ---
 
 *Made with ❤️ in Czech Republic | Empowering Developers Worldwide*
-
-*The future of indie game development starts here.*
