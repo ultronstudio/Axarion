@@ -21,9 +21,18 @@ from engine.core import AxarionEngine
 from engine.game_object import GameObject
 import pygame
 
+# Initialize pygame first
+pygame.init()
+
 # Create engine
-engine = AxarionEngine(800, 600)
-engine.initialize()
+engine = AxarionEngine(800, 600, "My Game")
+
+# Initialize with error handling
+try:
+    if not engine.initialize():
+        print("⚠️ Engine didn't initialize correctly, but continuing...")
+except Exception as e:
+    print(f"⚠️ Initialization error: {e}")
 
 # Create scene  
 scene = engine.create_scene("Game")
@@ -32,16 +41,23 @@ engine.current_scene = scene
 # Create object
 obj = GameObject("Player", "rectangle")
 obj.position = (100, 100)
+obj.set_property("width", 40)
+obj.set_property("height", 40)
 obj.set_property("color", (255, 100, 100))
+obj.is_static = True
 
 # Add behavior
 class PlayerController:
     def __init__(self, player):
         self.player = player
+        self.speed = 200
     
     def update(self, keys, delta_time):
-        # Your game logic here
-        pass
+        x, y = self.player.position
+        if keys[pygame.K_LEFT]:
+            self.player.position = (x - self.speed * delta_time, y)
+        if keys[pygame.K_RIGHT]:
+            self.player.position = (x + self.speed * delta_time, y)
 
 controller = PlayerController(obj)
 scene.add_object(obj)
@@ -50,11 +66,29 @@ scene.add_object(obj)
 clock = pygame.time.Clock()
 while engine.running:
     delta_time = clock.tick(60) / 1000.0
-    keys = engine.get_keys()
     
+    # Handle events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            engine.stop()
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                engine.stop()
+    
+    # Get keys and update
+    keys = pygame.key.get_pressed()
     controller.update(keys, delta_time)
-    engine.update(delta_time)
-    engine.render()
+    
+    # Update scene
+    if engine.current_scene:
+        engine.current_scene.update(delta_time)
+    
+    # Render
+    if engine.renderer:
+        engine.renderer.clear()
+        if engine.current_scene:
+            engine.current_scene.render(engine.renderer)
+        engine.renderer.present()
 
 engine.cleanup()
 ```
@@ -73,12 +107,12 @@ engine.cleanup()
 ### Keyboard Input
 ```python
 # Check if key is currently pressed
-keys = engine.get_keys()
-if keys.get("Space"):
+keys = pygame.key.get_pressed()
+if keys[pygame.K_SPACE]:
     # Handle space key
     pass
 
-if keys.get("ArrowLeft"):
+if keys[pygame.K_LEFT]:
     # Handle left arrow
     pass
 
@@ -90,13 +124,13 @@ class Movement:
     
     def update(self, keys, delta_time):
         x, y = self.player.position
-        if keys.get("ArrowLeft"):
+        if keys[pygame.K_LEFT]:
             x -= self.speed * delta_time
-        if keys.get("ArrowRight"):
+        if keys[pygame.K_RIGHT]:
             x += self.speed * delta_time
-        if keys.get("ArrowUp"):
+        if keys[pygame.K_UP]:
             y -= self.speed * delta_time
-        if keys.get("ArrowDown"):
+        if keys[pygame.K_DOWN]:
             y += self.speed * delta_time
         self.player.position = (x, y)
 ```
@@ -104,17 +138,17 @@ class Movement:
 ### Mouse Input
 ```python
 # Check mouse buttons
-mouse = engine.get_mouse()
-if mouse.get("left_button"):
+mouse_buttons = pygame.mouse.get_pressed()
+if mouse_buttons[0]:  # Left button
     # Left button pressed
     pass
 
-if mouse.get("right_button"):
+if mouse_buttons[2]:  # Right button
     # Right button pressed
     pass
 
 # Get mouse position
-mouse_pos = engine.get_mouse_pos()
+mouse_pos = pygame.mouse.get_pos()
 print(f"Mouse at: {mouse_pos[0]}, {mouse_pos[1]}")
 ```
 
