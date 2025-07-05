@@ -3,7 +3,7 @@ Axarion Studio
 """
 
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, scrolledtext
+from tkinter import ttk, filedialog, messagebox, scrolledtext, simpledialog
 import os
 import json
 import subprocess
@@ -260,7 +260,7 @@ class FileExplorer:
             messagebox.showwarning("Warning", "Please open a project first")
             return
 
-        filename = tk.simpledialog.askstring("New File", "Enter filename:")
+        filename = simpledialog.askstring("New File", "Enter filename:")
         if filename:
             file_path = os.path.join(self.current_project, filename)
             try:
@@ -277,7 +277,7 @@ class FileExplorer:
             messagebox.showwarning("Warning", "Please open a project first")
             return
 
-        foldername = tk.simpledialog.askstring("New Folder", "Enter folder name:")
+        foldername = simpledialog.askstring("New Folder", "Enter folder name:")
         if foldername:
             folder_path = os.path.join(self.current_project, foldername)
             try:
@@ -2006,7 +2006,7 @@ engine.initialize(**engine_config)
         text_frame = ttk.Frame(doc_window)
         text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        text_widget = scrolledtext.ScrolledText(text_frame, wrap=tk.WORD, font=('Consolas', 10))
+        text_widget = scrolledtext.ScrolledText(text_widget, wrap=tk.WORD, font=('Consolas', 10))
         text_widget.pack(fill=tk.BOTH, expand=True)
 
         # Load documentation content
@@ -2072,6 +2072,14 @@ Created with ❤️ for the game development community"""
     # ===============================
     # INTEGRATED GAME PACKAGER METHODS
     # ===============================
+
+    def show_studio_build_dialog(self):
+        """Show build dialog for Axarion Studio itself"""
+        messagebox.showinfo("Build Axarion Studio", 
+                           "To build Axarion Studio as executable:\n\n"
+                           "1. Install PyInstaller: pip install pyinstaller\n"
+                           "2. Run: pyinstaller --onefile --windowed axarion_studio.py\n"
+                           "3. Find executable in dist/ folder")
 
     def show_build_dialog(self):
         """Show integrated build/package dialog"""
@@ -2370,6 +2378,8 @@ Created with ❤️ for the game development community"""
             "single_file": single_file,
             "compress": compress
         })
+
+        self.save_settings()
 
         self.build_log_append("🚀 Starting build process...")
         self.build_progress_var.set("Building game...")
@@ -2677,6 +2687,25 @@ exe = EXE(
         """Start the IDE"""
         self.status_text.config(text="Axarion Studio ready!")
         self.root.mainloop()
+
+class cleanup:
+    def __init__(self, properties):
+        """
+        Initializes the cleanup class with the given lists.
+
+        :param properties: A list to store properties.
+        """
+        # Initialize lists
+        self.properties = properties
+
+    def add_property(self, property):
+        """Adds a property to the list of properties."""
+        self.properties.append(property)
+
+    def cleanup(self):
+        """Clears all the lists and sets the variables to None."""
+        # Clear references
+        self.properties.clear()
 
 if __name__ == "__main__":
     # Create and run Axarion Studio
