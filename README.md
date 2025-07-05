@@ -1,6 +1,11 @@
 # 🎮 Axarion Engine
 **Professional 2D Game Engine for Code-First Development**
 
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
+![License](https://img.shields.io/badge/license-GPL--3.0-red)
+![Version](https://img.shields.io/badge/version-0.8.1-green)
+![Status](https://img.shields.io/badge/status-Beta-brightgreen)
+
 *Proudly developed by a Czech indie studio*
 
 ---
