@@ -2675,7 +2675,7 @@ exe = EXE(
 
     def run(self):
         """Start the IDE"""
-        self.status_text.config(text="Axarion Studio Game Build System ready!")
+        self.status_text.config(text="Axarion Studio ready!")
         self.root.mainloop()
 
 if __name__ == "__main__":
