@@ -2006,7 +2006,7 @@ engine.initialize(**engine_config)
         text_frame = ttk.Frame(doc_window)
         text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        text_widget = scrolledtext.ScrolledText(text_widget, wrap=tk.WORD, font=('Consolas', 10))
+        text_widget = scrolledtext.ScrolledText(text_frame, wrap=tk.WORD, font=('Consolas', 10))
         text_widget.pack(fill=tk.BOTH, expand=True)
 
         # Load documentation content
