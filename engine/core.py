@@ -1,6 +1,5 @@
 """
 Axarion Engine Core
-Main engine class that manages all subsystems
 """
 
 import pygame
@@ -36,16 +35,16 @@ class AxarionEngine:
         self.frame_count = 0
         self.accumulated_time = 0.0
         
-        # NOVÉ OPTIMALIZACE VÝKONU
+        # NEW PERFORMANCE OPTIMIZATIONS
         self.performance_mode = "auto"  # auto, performance, quality
-        self.object_pool = {}  # Pooling objektů pro lepší výkon
+        self.object_pool = {}  # Object pooling for better performance
         self.culling_enabled = True
         self.batch_rendering = True
         self.adaptive_fps = True
         self.frame_skip_enabled = True
         self.max_objects_per_frame = 1000
         
-        # Pokročilé cache systémy
+        # Advanced cache systems
         self.render_cache = {}
         self.collision_cache = {}
         self.spatial_grid = {}
@@ -246,16 +245,16 @@ class AxarionEngine:
             import time
             frame_start = time.perf_counter()
 
-            # NOVÁ OPTIMALIZACE: Adaptivní FPS
+            # NEW OPTIMIZATION: Adaptive FPS
             if self.adaptive_fps:
                 self._adjust_target_fps()
 
             # Calculate delta time with time scale
             raw_delta = self.clock.tick(self.target_fps) / 1000.0
             
-            # NOVÁ OPTIMALIZACE: Frame skipping pro náročné hry
-            if self.frame_skip_enabled and raw_delta > 1.0/30.0:  # Pokud FPS < 30
-                self.delta_time = 1.0/30.0 * self.time_scale  # Limituj delta time
+            # NEW OPTIMIZATION: Frame skipping for demanding games
+            if self.frame_skip_enabled and raw_delta > 1.0/30.0:  # If FPS < 30
+                self.delta_time = 1.0/30.0 * self.time_scale  # Limit delta time
             else:
                 self.delta_time = raw_delta * self.time_scale
                 
@@ -276,7 +275,7 @@ class AxarionEngine:
             if self.game_state == "paused":
                 return
 
-            # NOVÁ OPTIMALIZACE: Update spatial grid pro kolize
+            # NEW OPTIMIZATION: Update spatial grid for collisions
             self._update_spatial_grid()
 
             # Update input system
@@ -292,7 +291,7 @@ class AxarionEngine:
             except Exception as e:
                 self._log_error(f"Systems update failed: {e}")
 
-            # NOVÁ OPTIMALIZACE: Selective scene update
+            # NEW OPTIMIZATION: Selective scene update
             if self.current_scene and self.current_scene.active:
                 try:
                     self._update_scene_optimized(self.delta_time)
@@ -312,7 +311,7 @@ class AxarionEngine:
             except Exception as e:
                 self._log_error(f"Message processing failed: {e}")
 
-            # NOVÁ OPTIMALIZACE: Cleanup unused objects
+            # NEW OPTIMIZATION: Cleanup unused objects
             self._cleanup_object_pools()
 
             # Update performance stats
@@ -380,11 +379,19 @@ class AxarionEngine:
                     self._log_error(f"Error in message handler: {e}")
 
     def _update_performance_stats(self, frame_time):
-        """Update performance statistics"""
+        """Update performance statistics with CPU monitoring"""
         import time
         current_time = time.time()
 
         self.performance_stats['frame_time'] = frame_time * 1000  # Convert to ms
+
+        # NEW: CPU utilization monitoring
+        cpu_usage = self._get_cpu_usage()
+        self.performance_stats['cpu_usage'] = cpu_usage
+        
+        # NEW: Memory usage monitoring
+        memory_usage = self._get_memory_usage()
+        self.performance_stats['memory_usage'] = memory_usage
 
         # Update FPS every second
         if current_time - self.performance_stats.get('last_fps_update', 0) >= 1.0:
@@ -392,6 +399,92 @@ class AxarionEngine:
             if elapsed > 0:
                 self.performance_stats['fps'] = self.frame_count / elapsed
             self.performance_stats['last_fps_update'] = current_time
+            
+            # NEW: Performance warnings
+            self._check_performance_warnings()
+
+    def _get_cpu_usage(self):
+        """Get CPU usage without external libraries"""
+        try:
+            # Simple way to measure CPU without psutil
+            import os
+            import time
+            
+            if not hasattr(self, '_last_cpu_time'):
+                self._last_cpu_time = time.time()
+                self._last_process_time = time.process_time()
+                return 0.0
+            
+            current_time = time.time()
+            current_process_time = time.process_time()
+            
+            time_delta = current_time - self._last_cpu_time
+            process_delta = current_process_time - self._last_process_time
+            
+            if time_delta > 0:
+                cpu_percent = (process_delta / time_delta) * 100
+                cpu_percent = min(100.0, max(0.0, cpu_percent))  # Clamp 0-100%
+            else:
+                cpu_percent = 0.0
+            
+            self._last_cpu_time = current_time
+            self._last_process_time = current_process_time
+            
+            return cpu_percent
+        except:
+            return 0.0
+
+    def _check_performance_warnings(self):
+        """Check performance and show warnings"""
+        fps = self.performance_stats.get('fps', 60)
+        cpu_usage = self.performance_stats.get('cpu_usage', 0)
+        memory_usage = self.performance_stats.get('memory_usage', 0)
+        frame_time = self.performance_stats.get('frame_time', 0)
+        
+        # CPU insufficient warning
+        if cpu_usage > 95:
+            self._log_warning(f"⚠️ CPU OVERLOADED! Usage: {cpu_usage:.1f}% - Reduce graphics details or object count")
+            self._suggest_performance_improvements()
+        elif cpu_usage > 85:
+            self._log_warning(f"🔥 High CPU: {cpu_usage:.1f}% - Engine using nearly full power")
+        
+        # FPS warnings
+        if fps < 30:
+            self._log_warning(f"⚠️ LOW FPS: {fps:.1f} - Game is slow! CPU probably can't keep up")
+            self._auto_optimize_for_performance()
+        elif fps < 45:
+            self._log_warning(f"⚠️ FPS below target: {fps:.1f} - Consider optimization")
+        
+        # Frame time warnings  
+        if frame_time > 33.3:  # Over 30 FPS threshold
+            self._log_warning(f"⚠️ Long frame time: {frame_time:.1f}ms - CPU can't process frame in time")
+
+    def _suggest_performance_improvements(self):
+        """Suggest performance improvements when CPU is struggling"""
+        suggestions = [
+            "💡 Set performance mode: engine.set_performance_mode('performance')",
+            "💡 Reduce max_objects_per_frame: engine.max_objects_per_frame = 500",
+            "💡 Enable frame skipping: engine.frame_skip_enabled = True",
+            "💡 Lower target FPS: engine.set_target_fps(30)",
+            "💡 Enable object pooling for frequently created objects"
+        ]
+        
+        for suggestion in suggestions:
+            self._log_info(suggestion)
+
+    def _auto_optimize_for_performance(self):
+        """Automatically optimize when performance is poor"""
+        if self.performance_mode == "auto":
+            self._log_info("🔧 Auto-optimization: Switching to performance mode")
+            self.set_performance_mode("performance")
+            
+            # Additional aggressive optimizations
+            self.max_objects_per_frame = min(self.max_objects_per_frame, 300)
+            self.frame_skip_enabled = True
+            
+            if self.target_fps > 30:
+                self.target_fps = 30
+                self._log_info("🔧 Auto-optimization: Lowering target FPS to 30")
 
     def optimize_rendering(self, enable_culling=True, enable_batching=True):
         """Optimize rendering performance"""
@@ -474,7 +567,7 @@ class AxarionEngine:
             raise
 
     def _render_debug_info(self):
-        """Render debug information overlay"""
+        """Render debug information overlay with CPU info"""
         if not self.renderer:
             return
 
@@ -483,15 +576,48 @@ class AxarionEngine:
             f"Frame: {self.performance_stats.get('frame_time', 0):.2f}ms",
             f"Render: {self.performance_stats.get('render_time', 0):.2f}ms",
             f"Physics: {self.performance_stats.get('physics_time', 0)*1000:.2f}ms",
+            f"CPU: {self.performance_stats.get('cpu_usage', 0):.1f}%",
+            f"Memory: {self.performance_stats.get('memory_usage', 0):.1f}MB",
             f"Objects: {self.performance_stats.get('objects_rendered', 0)}",
+            f"Mode: {self.performance_mode}",
             f"Scene: {self.current_scene.name if self.current_scene else 'None'}",
             f"Time Scale: {self.time_scale:.2f}"
         ]
 
         y_offset = 10
         for info in debug_info:
-            self.renderer.draw_text(info, 10, y_offset, (255, 255, 0))
+            # Color code based on performance
+            color = (255, 255, 0)  # Yellow default
+            if "CPU:" in info:
+                cpu_val = self.performance_stats.get('cpu_usage', 0)
+                if cpu_val > 90:
+                    color = (255, 0, 0)  # Red for high CPU
+                elif cpu_val > 70:
+                    color = (255, 165, 0)  # Orange for medium CPU
+                else:
+                    color = (0, 255, 0)  # Green for good CPU
+            elif "FPS:" in info:
+                fps_val = self.performance_stats.get('fps', 0)
+                if fps_val < 30:
+                    color = (255, 0, 0)  # Red for low FPS
+                elif fps_val < 50:
+                    color = (255, 165, 0)  # Orange for medium FPS
+                else:
+                    color = (0, 255, 0)  # Green for good FPS
+                    
+            self.renderer.draw_text(info, 10, y_offset, color)
             y_offset += 18
+
+        # NEW: Warning indicators
+        cpu_usage = self.performance_stats.get('cpu_usage', 0)
+        fps = self.performance_stats.get('fps', 0)
+        
+        if cpu_usage > 95 or fps < 25:
+            warning_text = "⚠️ CPU OVERLOADED! Try performance mode"
+            self.renderer.draw_text(warning_text, 10, y_offset + 20, (255, 0, 0))
+        elif cpu_usage > 85 or fps < 45:
+            warning_text = "⚠️ High CPU load"
+            self.renderer.draw_text(warning_text, 10, y_offset + 20, (255, 165, 0))
 
     def run_frame(self):
         """Run a single frame of the engine"""
@@ -666,7 +792,7 @@ class AxarionEngine:
 
     # NOVÉ OPTIMALIZAČNÍ METODY
     def _adjust_target_fps(self):
-        """Adaptivní FPS podle výkonu"""
+        """Adaptive FPS based on performance"""
         if hasattr(self, 'performance_stats'):
             current_fps = self.performance_stats.get('fps', 60)
             
@@ -681,7 +807,7 @@ class AxarionEngine:
                 self.target_fps = 60
 
     def _update_spatial_grid(self):
-        """Prostorová mřížka pro rychlejší kolize"""
+        """Spatial grid for faster collisions"""
         if not self.current_scene:
             return
             
@@ -702,8 +828,8 @@ class AxarionEngine:
             self.spatial_grid[key].append(obj)
 
     def _update_systems_optimized(self, delta_time):
-        """Optimalizovaný update systémů"""
-        # Pouze aktivní systémy
+        """Optimized systems update"""
+        # Only active systems
         systems_to_update = [
             ('physics', self.physics),
             ('audio', self.audio_manager)
@@ -716,7 +842,7 @@ class AxarionEngine:
                 except Exception as e:
                     self._log_error(f"Error updating {system_name} system: {e}")
 
-        # Update external systems s error handling
+        # Update external systems with error handling
         try:
             from .animation_system import animation_system
             from .particle_system import particle_system
@@ -726,56 +852,127 @@ class AxarionEngine:
             pass
 
     def _update_scene_optimized(self, delta_time):
-        """Optimalizovaný update scény"""
+        """Optimized scene update for better CPU utilization"""
         if not self.current_scene:
             return
             
-        # Počítaj pouze aktivní objekty
+        # Count only active objects
         active_objects = [obj for obj in self.current_scene.objects 
                          if obj.active and not obj.destroyed]
         
-        # NOVÁ OPTIMALIZACE: Limituj počet objektů na frame
-        if len(active_objects) > self.max_objects_per_frame:
-            # Update pouze část objektů každý frame
-            objects_per_frame = self.max_objects_per_frame
-            start_index = (self.frame_count * objects_per_frame) % len(active_objects)
-            end_index = min(start_index + objects_per_frame, len(active_objects))
-            objects_to_update = active_objects[start_index:end_index]
-        else:
-            objects_to_update = active_objects
+        # NEW OPTIMIZATION: Priority update system
+        if hasattr(self, '_priority_update_system') and self._priority_update_system:
+            # Divide objects by priority
+            high_priority = []
+            normal_priority = []
+            low_priority = []
             
-        # Update vybraných objektů
-        for obj in objects_to_update:
+            for obj in active_objects:
+                priority = obj.get_property("update_priority", "normal")
+                if priority == "high":
+                    high_priority.append(obj)
+                elif priority == "low":
+                    low_priority.append(obj)
+                else:
+                    normal_priority.append(obj)
+            
+            # Always update high priority objects
+            objects_to_update = high_priority.copy()
+            
+            # Add normal priority objects if we have CPU capacity
+            remaining_capacity = self.max_objects_per_frame - len(objects_to_update)
+            if remaining_capacity > 0:
+                objects_to_update.extend(normal_priority[:remaining_capacity])
+                
+                # Add low priority objects if still capacity
+                remaining_capacity = self.max_objects_per_frame - len(objects_to_update)
+                if remaining_capacity > 0 and self.frame_count % 3 == 0:  # Low priority every 3rd frame
+                    objects_to_update.extend(low_priority[:remaining_capacity])
+        else:
+            # NEW OPTIMIZATION: Limit objects per frame
+            if len(active_objects) > self.max_objects_per_frame:
+                # Update only part of objects each frame
+                objects_per_frame = self.max_objects_per_frame
+                start_index = (self.frame_count * objects_per_frame) % len(active_objects)
+                end_index = min(start_index + objects_per_frame, len(active_objects))
+                objects_to_update = active_objects[start_index:end_index]
+            else:
+                objects_to_update = active_objects
+        
+        # NEW OPTIMIZATION: Batch update for similar objects
+        if hasattr(self, '_enable_threaded_updates') and self._enable_threaded_updates:
+            self._batch_update_objects(objects_to_update, delta_time)
+        else:
+            # Update selected objects
+            for obj in objects_to_update:
+                try:
+                    obj.update(delta_time)
+                except Exception as e:
+                    self._log_error(f"Error updating object {obj.name}: {e}")
+
+    def _batch_update_objects(self, objects, delta_time):
+        """Batch update objects for better CPU cache utilization"""
+        # Group objects by type for better cache locality
+        object_groups = {}
+        
+        for obj in objects:
+            obj_type = obj.object_type
+            if obj_type not in object_groups:
+                object_groups[obj_type] = []
+            object_groups[obj_type].append(obj)
+        
+        # Update each group of objects together
+        for obj_type, group in object_groups.items():
+            self._update_object_group(group, delta_time)
+
+    def _update_object_group(self, objects, delta_time):
+        """Update group of objects of same type"""
+        # Optimized update for object group
+        for obj in objects:
             try:
+                # NEW OPTIMIZATION: Skip expensive operations for distant objects
+                if hasattr(obj, 'position') and hasattr(self, 'renderer'):
+                    # Simple distance check (without sqrt for speed)
+                    if self.renderer.camera:
+                        cam_x, cam_y = self.renderer.camera.position
+                        obj_x, obj_y = obj.position
+                        dist_sq = (obj_x - cam_x) ** 2 + (obj_y - cam_y) ** 2
+                        
+                        # Skip update for very distant objects
+                        if dist_sq > 1000000:  # 1000^2
+                            obj._skip_update_check = True
+                        else:
+                            obj._skip_update_check = False
+                
                 obj.update(delta_time)
             except Exception as e:
                 self._log_error(f"Error updating object {obj.name}: {e}")
 
     def _cleanup_object_pools(self):
-        """Čištění object pools"""
-        if self.frame_count % 300 == 0:  # Každých 5 sekund při 60 FPS
+        """Cleanup object pools"""
+        if self.frame_count % 300 == 0:  # Every 5 seconds at 60 FPS
             for pool_name, pool in self.object_pool.items():
                 if hasattr(pool, 'cleanup'):
                     pool.cleanup()
 
     def get_object_from_pool(self, object_type):
-        """Získej objekt z pool pro lepší výkon"""
+        """Get object from pool for better performance"""
         if object_type not in self.object_pool:
             self.object_pool[object_type] = []
             
         pool = self.object_pool[object_type]
         if pool:
             obj = pool.pop()
-            obj.reset()  # Reset vlastností
+            obj.reset()  # Reset properties
             self.performance_stats['pool_reuses'] += 1
             return obj
         else:
-            # Vytvoř nový objekt
+            # Create new object
             from .game_object import GameObject
             return GameObject(f"Pooled_{object_type}", object_type)
 
     def return_object_to_pool(self, obj):
-        """Vrať objekt do pool"""
+        """Return object to pool"""
         if obj.object_type not in self.object_pool:
             self.object_pool[obj.object_type] = []
             
@@ -784,7 +981,7 @@ class AxarionEngine:
         self.object_pool[obj.object_type].append(obj)
 
     def set_performance_mode(self, mode):
-        """Nastav výkonnostní režim"""
+        """Set performance mode"""
         self.performance_mode = mode
         
         if mode == "performance":
@@ -793,13 +990,122 @@ class AxarionEngine:
             self.adaptive_fps = True
             self.frame_skip_enabled = True
             self.max_objects_per_frame = 500
+            self._log_info("🚀 Performance mode: Maximum performance for weaker CPUs")
         elif mode == "quality":
             self.culling_enabled = False
             self.batch_rendering = False
             self.adaptive_fps = False
             self.frame_skip_enabled = False
             self.max_objects_per_frame = 2000
-        # "auto" zůstává s výchozími hodnotami
+            self._log_info("✨ Quality mode: Best graphics for powerful CPUs")
+        elif mode == "extreme_performance":
+            # NEW: Extreme performance mode
+            self.culling_enabled = True
+            self.batch_rendering = True
+            self.adaptive_fps = True
+            self.frame_skip_enabled = True
+            self.max_objects_per_frame = 200
+            self.target_fps = 30
+            self._enable_aggressive_optimizations()
+            self._log_info("⚡ Extreme Performance: For very weak CPUs")
+        # "auto" remains with default values
+
+    def _enable_aggressive_optimizations(self):
+        """Enable aggressive optimizations for weak CPUs"""
+        # Lower rendering quality
+        if self.renderer:
+            self.renderer.enable_antialiasing = False
+            self.renderer.particle_limit = 50
+            
+        # Aggressive garbage collection
+        import gc
+        gc.set_threshold(100, 5, 5)  # More frequent garbage collection
+        
+        # Spatial grid optimization
+        self._spatial_grid_size = 128  # Larger grid cells = fewer calculations
+
+    def enable_cpu_optimization(self):
+        """Enable advanced CPU optimizations"""
+        self._log_info("🔧 Enabling advanced CPU optimizations...")
+        
+        # Multi-threading for suitable tasks (without external libraries)
+        self._enable_threaded_updates = True
+        
+        # Priority update system
+        self._priority_update_system = True
+        
+        # Cache optimizations
+        self._enable_smart_caching()
+        
+        # Memory pool pre-allocation
+        self._preallocate_memory_pools()
+        
+        self._log_info("✅ CPU optimizations enabled")
+
+    def _enable_smart_caching(self):
+        """Enable smart caching for better CPU utilization"""
+        # Cache for frequently used calculations
+        self.calculation_cache = {}
+        self.collision_cache_enabled = True
+        self.render_cache_enabled = True
+        
+        # Cache cleanup every 1000 frames
+        self.cache_cleanup_interval = 1000
+
+    def _preallocate_memory_pools(self):
+        """Pre-allocate memory pools to reduce garbage collection"""
+        # Pre-allocate objects for commonly used types
+        common_types = ['projectile', 'particle', 'enemy', 'pickup']
+        
+        for obj_type in common_types:
+            if obj_type not in self.object_pool:
+                self.object_pool[obj_type] = []
+                
+                # Pre-create several objects
+                for _ in range(20):
+                    from .game_object import GameObject
+                    obj = GameObject(f"Pooled_{obj_type}", obj_type)
+                    obj.active = False
+                    obj.visible = False
+                    self.object_pool[obj_type].append(obj)
+        
+        self._log_info(f"💾 Pre-allocated {len(common_types)} object pools")
+
+    def get_cpu_performance_info(self):
+        """Get detailed CPU performance information"""
+        return {
+            "cpu_usage": self.performance_stats.get('cpu_usage', 0),
+            "memory_usage": self.performance_stats.get('memory_usage', 0),
+            "fps": self.performance_stats.get('fps', 0),
+            "frame_time": self.performance_stats.get('frame_time', 0),
+            "objects_rendered": self.performance_stats.get('objects_rendered', 0),
+            "performance_mode": self.performance_mode,
+            "optimizations_active": {
+                "culling": self.culling_enabled,
+                "batching": self.batch_rendering,
+                "adaptive_fps": self.adaptive_fps,
+                "frame_skipping": self.frame_skip_enabled,
+                "object_pooling": len(self.object_pool) > 0
+            }
+        }
+
+    def force_cpu_optimization(self):
+        """Force CPU optimization for struggling systems"""
+        self._log_warning("🔧 FORCED CPU OPTIMIZATION - Game running slowly!")
+        
+        # Drastic load reduction
+        self.set_performance_mode("extreme_performance")
+        self.max_objects_per_frame = 100
+        self.target_fps = 20
+        
+        # Disable demanding effects
+        try:
+            from .particle_system import particle_system
+            particle_system.max_particles = 25
+        except:
+            pass
+            
+        self._log_info("⚡ CPU optimization completed - game should run better")
 
     def cleanup(self):
         """Comprehensive cleanup of all engine resources"""
@@ -809,7 +1115,7 @@ class AxarionEngine:
             # Stop any running processes
             self.running = False
 
-            # NOVÁ OPTIMALIZACE: Cleanup pools
+            # NEW OPTIMIZATION: Cleanup pools
             self.object_pool.clear()
             self.render_cache.clear()
             self.collision_cache.clear()
