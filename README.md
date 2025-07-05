@@ -51,42 +51,75 @@ Axarion Engine is a cutting-edge 2D game development framework designed specific
 ```python
 from engine.core import AxarionEngine
 from engine.game_object import GameObject
-from engine.asset_manager import asset_manager
+import pygame
 
-# Initialize the engine
-engine = AxarionEngine(1024, 768, "My First Game")
-engine.initialize()
+# Initialize pygame first
+pygame.init()
 
-# Load game assets
-asset_manager.load_all_assets()
+# Create engine
+engine = AxarionEngine(800, 600, "My First Game")
 
-# Create main scene
+# Initialize with error handling
+try:
+    if not engine.initialize():
+        print("⚠️ Engine didn't initialize correctly, but continuing...")
+except Exception as e:
+    print(f"⚠️ Initialization error: {e}")
+
+# Create scene
 scene = engine.create_scene("GameScene")
 engine.current_scene = scene
 
 # Create player object
-player = GameObject("Player", "sprite")
+player = GameObject("Player", "rectangle")
 player.position = (100, 100)
-player.set_sprite("ship")
+player.set_property("width", 40)
+player.set_property("height", 40)
+player.set_property("color", (100, 200, 255))
+player.is_static = True
 
-# Example movement implementation
-player.speed = 300
-def update(self):
-    if engine.input.is_key_pressed("w"):
-        self.position = (self.position[0], self.position[1] - self.speed * engine.delta_time)
-    if engine.input.is_key_pressed("s"):
-        self.position = (self.position[0], self.position[1] + self.speed * engine.delta_time)
-    if engine.input.is_key_pressed("a"):
-        self.position = (self.position[0] - self.speed * engine.delta_time, self.position[1])
-    if engine.input.is_key_pressed("d"):
-        self.position = (self.position[0] + self.speed * engine.delta_time, self.position[1])
-
-player.update = update.__get__(player)
-
-
-# Add to scene and start the game
+# Add to scene
 scene.add_object(player)
-engine.run()
+
+# Game loop
+clock = pygame.time.Clock()
+speed = 200
+
+while engine.running:
+    delta_time = clock.tick(60) / 1000.0
+    
+    # Handle events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            engine.stop()
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                engine.stop()
+    
+    # Handle input
+    keys = pygame.key.get_pressed()
+    x, y = player.position
+    
+    if keys[pygame.K_w] or keys[pygame.K_UP]:
+        player.position = (x, y - speed * delta_time)
+    if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+        player.position = (x, y + speed * delta_time)
+    if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+        player.position = (x - speed * delta_time, y)
+    if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+        player.position = (x + speed * delta_time, y)
+    
+    # Update and render
+    if engine.current_scene:
+        engine.current_scene.update(delta_time)
+    
+    if engine.renderer:
+        engine.renderer.clear()
+        if engine.current_scene:
+            engine.current_scene.render(engine.renderer)
+        engine.renderer.present()
+
+engine.cleanup()
 ```
 
 ## 🎮 Core Systems
