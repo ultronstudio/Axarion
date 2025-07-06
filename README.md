@@ -230,12 +230,6 @@ Axarion Engine was born from the passion of Czech indie developers who understan
 - **Documentation**: Comprehensive guides and tutorials
 - **Email Support**: Direct contact with the development team
 
-## 🏆 Success Stories
-
-*"Axarion Engine allowed our small team to ship our first game in just 3 months. The code-first approach meant we could iterate quickly without fighting against a complex editor."* - Indie Developer
-
-*"As a programming teacher, Axarion is perfect for students. They learn real programming concepts while creating something fun and visual."* - Computer Science Educator
-
 ## 📜 License & Attribution
 
 Axarion Engine is released under the GPL License. While attribution is not required, we appreciate recognition of our work. See our [Attribution Guide](DOCS/Axarion_Attribution_Guide.md) for optional ways to credit the engine.
