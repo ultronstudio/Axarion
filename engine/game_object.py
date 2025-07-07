@@ -78,6 +78,10 @@ class GameObject:
 
         # Timers
         self.timers: Dict[str, float] = {}
+        
+        # Signal system
+        self.signals = {}
+        self.signal_connections = {}
 
         # Stats (for RPG objects)
         self.stats: Dict[str, float] = {
@@ -201,6 +205,9 @@ class GameObject:
         # Execute script if present
         if self.script_code:
             self.execute_script()
+        
+        # Update state machine
+        self.update_state_machine(delta_time)
 
         # NOVÁ OPTIMALIZACE: Cache reset pokud se objekt příliš nezměnil
         self._cache_position_for_optimization()
@@ -1065,3 +1072,35 @@ class GameObject:
     def set_optimization_mode(self, skip_invisible_updates=True):
         """Nastav optimalizační režim pro objekt"""
         self._skip_update_check = skip_invisible_updates
+    
+    # SIGNAL SYSTEM
+    def connect_signal(self, signal_name: str, callback):
+        """Connect a callback to a signal"""
+        if signal_name not in self.signal_connections:
+            self.signal_connections[signal_name] = []
+        self.signal_connections[signal_name].append(callback)
+    
+    def emit_signal(self, signal_name: str, *args, **kwargs):
+        """Emit a signal to all connected callbacks"""
+        if signal_name in self.signal_connections:
+            for callback in self.signal_connections[signal_name]:
+                try:
+                    callback(self, *args, **kwargs)
+                except Exception as e:
+                    print(f"Signal callback error: {e}")
+    
+    def disconnect_signal(self, signal_name: str, callback):
+        """Disconnect a callback from a signal"""
+        if signal_name in self.signal_connections:
+            if callback in self.signal_connections[signal_name]:
+                self.signal_connections[signal_name].remove(callback)
+    
+    # FINITE STATE MACHINE INTEGRATION
+    def set_state_machine(self, state_machine):
+        """Set state machine for this object"""
+        self.state_machine = state_machine
+    
+    def update_state_machine(self, delta_time):
+        """Update state machine if present"""
+        if hasattr(self, 'state_machine') and self.state_machine:
+            self.state_machine.update(self, delta_time)

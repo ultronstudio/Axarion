@@ -49,6 +49,10 @@ class Scene:
         # Event callbacks
         self.on_object_added = None
         self.on_object_removed = None
+        
+        # Prefab system
+        self.prefabs = {}
+        self.prefab_instances = {}
 
     def add_object(self, game_object: GameObject) -> str:
         """Add object to scene and return its ID"""
@@ -354,4 +358,60 @@ class Scene:
             return True
         except Exception as e:
             print(f"Failed to load scene: {e}")
+            return False
+    
+    # PREFAB SYSTEM
+    def create_prefab(self, name: str, template_object: GameObject):
+        """Create a prefab from a game object"""
+        prefab_data = template_object.serialize()
+        self.prefabs[name] = prefab_data
+        return prefab_data
+    
+    def instantiate_prefab(self, prefab_name: str, x: float = 0, y: float = 0):
+        """Create an instance of a prefab"""
+        if prefab_name not in self.prefabs:
+            print(f"Prefab '{prefab_name}' not found")
+            return None
+        
+        # Create new object from prefab data
+        prefab_data = self.prefabs[prefab_name].copy()
+        obj = GameObject("temp", "rectangle")
+        obj.deserialize(prefab_data)
+        
+        # Set position and generate unique name
+        obj.position = (x, y)
+        instance_id = len(self.prefab_instances.get(prefab_name, []))
+        obj.name = f"{prefab_name}_{instance_id}"
+        
+        # Track instance
+        if prefab_name not in self.prefab_instances:
+            self.prefab_instances[prefab_name] = []
+        self.prefab_instances[prefab_name].append(obj)
+        
+        # Add to scene
+        self.add_object(obj)
+        return obj
+    
+    def save_prefab(self, prefab_name: str, file_path: str):
+        """Save prefab to file"""
+        if prefab_name not in self.prefabs:
+            return False
+        
+        try:
+            with open(file_path, 'w') as f:
+                json.dump(self.prefabs[prefab_name], f, indent=2)
+            return True
+        except Exception as e:
+            print(f"Failed to save prefab: {e}")
+            return False
+    
+    def load_prefab(self, prefab_name: str, file_path: str):
+        """Load prefab from file"""
+        try:
+            with open(file_path, 'r') as f:
+                prefab_data = json.load(f)
+            self.prefabs[prefab_name] = prefab_data
+            return True
+        except Exception as e:
+            print(f"Failed to load prefab: {e}")
             return False
