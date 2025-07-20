@@ -114,6 +114,8 @@ a = Analysis(
         (os.path.join(root_dir, "assets"), "assets"),
         # Include Projects folder if it exists
         (os.path.join(root_dir, "Projects"), "Projects"),
+        # Include Game Builder files
+        (os.path.join(root_dir, "axarion_game_builder.py"), "."),
         # Include logo and favicon
         (os.path.join(root_dir, "Logo.png"), "."),
         (os.path.join(root_dir, "favicon.png"), "."),
@@ -136,6 +138,7 @@ a = Analysis(
         'threading',
         'subprocess',
         'tkinter',
+        'axarion_game_builder',
         'tkinter.ttk',
         'tkinter.font',
         'tkinter.messagebox',

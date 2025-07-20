@@ -16,6 +16,14 @@ except ImportError:
     PIL_AVAILABLE = False
     print("PIL not available - using fallback buttons")
 
+# Import splash screen
+try:
+    from splash_screen import SplashScreen
+    SPLASH_AVAILABLE = True
+except ImportError:
+    SPLASH_AVAILABLE = False
+    print("Splash screen not available")
+
 # Import the Asset Manager
 try:
     from asset_manager.asset_manager import AssetManagerWindow
@@ -23,6 +31,10 @@ try:
 except ImportError:
     ASSET_MANAGER_AVAILABLE = False
     print("Asset Manager not available - missing dependencies")
+
+# Check if Game Builder is available (either as file or in bundled executable)
+GAME_BUILDER_AVAILABLE = (os.path.exists(os.path.join(os.path.dirname(__file__), "axarion_game_builder.py")) or 
+                          getattr(sys, 'frozen', False))
 
 
 class SyntaxHighlighter:
@@ -387,6 +399,25 @@ class AxarionStudio:
 
     def __init__(self):
         self.root = tk.Tk()
+        self.root.withdraw()  # Hide main window initially
+        
+        # Initialize variables
+        self.current_file = None
+        self.file_contents = {}
+        self.asset_manager_window = None
+        self.current_project_path = None
+        self.unsaved_files = set()  # Track files with unsaved changes
+        
+        # Show splash screen first if available
+        if SPLASH_AVAILABLE:
+            self.splash = SplashScreen(self.on_splash_complete)
+        else:
+            # No splash available, go directly to main window
+            self.on_splash_complete()
+    
+    def on_splash_complete(self):
+        """Called when splash screen completes - show main editor"""
+        self.root.deiconify()  # Show main window
         self.root.title("Axarion Engine Editor")
         self.root.geometry("1200x800")
         self.root.configure(bg='#0C0F2E')
@@ -415,12 +446,6 @@ class AxarionStudio:
         self.style.configure('Treeview.Heading',
                              background='#1a1d4a',
                              foreground='white')
-
-        self.current_file = None
-        self.file_contents = {}
-        self.asset_manager_window = None
-        self.current_project_path = None
-        self.unsaved_files = set()  # Track files with unsaved changes
 
         # Set up quit confirmation
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -565,6 +590,8 @@ class AxarionStudio:
                                  start_color='#7C3AED',
                                  end_color='#9333EA')
             btn.pack(side=tk.LEFT, padx=(0, 5))
+
+    
 
     def create_about_buttons(self, parent):
         """Create about buttons"""
@@ -1816,7 +1843,7 @@ Happy game development!
         engine_info.pack(pady=10)
 
         version_label = tk.Label(version_frame,
-                                 text="Engine Version: 1.0.0",
+                                 text="Engine Version: 1.0.1",
                                  font=('Segoe UI', 10),
                                  bg='#1a1d4a',
                                  fg='#FFD700')
@@ -1840,14 +1867,12 @@ Happy game development!
                                   fg='white')
         features_title.pack(anchor='w')
 
-        features_text = """• Integrated & Enhanced Asset Manager
-• Fresh, Modern Editor UI
-• Centralized Projects Folder
-• Brand New Asset Manager Feature
-• Revamped "About" Section
-• Simple EXE Builder
-• New Editor Logo And Name
-• Save and Exit + Warning Feature When Closed"""
+        features_text = """• Added Splash Screen on Startup
+• Axarion Game Builder (Early Development)
+    - Only works in the open-source .py version
+    – Not available in the .exe build
+    – Use Visual Studio or a Python environment to build games
+• Fixed Bugs    """
 
         features_label = tk.Label(features_frame,
                                   text=features_text,
@@ -1941,6 +1966,69 @@ Beta Tester: Jerry"""
                 self.asset_manager_window.window.focus()
         except Exception as e:
             messagebox.showerror("Error", f"Could not open Asset Manager: {e}")
+
+    def open_game_builder(self):
+        """Open the Game Builder as a separate process"""
+        try:
+            import subprocess
+            import sys
+            import threading
+            
+            # Check if we're running in a bundled executable
+            if getattr(sys, 'frozen', False):
+                # Running in a bundled executable - try to import and run directly
+                try:
+                    import axarion_game_builder
+                    # Run the Game Builder in a separate thread to avoid blocking the main UI
+                    def run_builder():
+                        try:
+                            app = axarion_game_builder.AxarionGameBuilder()
+                            app.run()
+                        except Exception as e:
+                            print(f"Game Builder error: {e}")
+                            # Show error in main thread
+                            self.root.after(0, lambda: messagebox.showerror("Error", f"Game Builder error: {e}"))
+                    
+                    builder_thread = threading.Thread(target=run_builder, daemon=True)
+                    builder_thread.start()
+                    self.update_status("Launched Axarion Game Builder")
+                    
+                except ImportError as e:
+                    messagebox.showerror("Error", f"Game Builder not available in bundled version: {e}")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Could not launch Game Builder: {e}")
+            else:
+                # Running in development - try both subprocess and direct import
+                game_builder_path = os.path.join(os.path.dirname(__file__), "axarion_game_builder.py")
+                
+                if os.path.exists(game_builder_path):
+                    try:
+                        # Try subprocess first
+                        subprocess.Popen([sys.executable, game_builder_path], 
+                                       cwd=os.path.dirname(__file__))
+                        self.update_status("Launched Axarion Game Builder")
+                    except Exception as subprocess_error:
+                        # Fallback to direct import
+                        try:
+                            import axarion_game_builder
+                            def run_builder():
+                                try:
+                                    app = axarion_game_builder.AxarionGameBuilder()
+                                    app.run()
+                                except Exception as e:
+                                    print(f"Game Builder error: {e}")
+                                    self.root.after(0, lambda: messagebox.showerror("Error", f"Game Builder error: {e}"))
+                            
+                            builder_thread = threading.Thread(target=run_builder, daemon=True)
+                            builder_thread.start()
+                            self.update_status("Launched Axarion Game Builder")
+                        except ImportError as import_error:
+                            messagebox.showerror("Error", f"Game Builder not available: {import_error}")
+                else:
+                    messagebox.showerror("Error", "axarion_game_builder.py not found")
+                    
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not launch Game Builder: {e}")
 
     # File operations
     def new_file(self):

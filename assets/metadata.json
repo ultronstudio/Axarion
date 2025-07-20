@@ -20,5 +20,12 @@
         "description": "Optional description"
       }
     }
+  },
+  "images\\favicon.png": {
+    "name": "favicon.png",
+    "type": "images",
+    "size": 982530,
+    "imported_at": "1752943423.0",
+    "path": "images\\favicon.png"
   }
 }
