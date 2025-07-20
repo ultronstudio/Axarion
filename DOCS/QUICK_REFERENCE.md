@@ -1,687 +1,648 @@
 
-# 🚀 Axarion Engine Quick Reference
+# 🚀 Axarion Studio - Quick Reference
 
-**Next-Generation Game Engine - Evolved from VoidRay**
+**Professional Development Environment for 2D Games**
 
-This is a handy reference for common tasks and code patterns in Axarion Engine. Perfect for quick lookups while developing games with the most advanced code-first 2D engine available!
+This is a practical reference for common tasks and code patterns in Axarion Studio. Perfect for quick lookup during development in the most modern 2D game studio!
 
-## 🔥 Major Improvements Over VoidRay
-- **3x Faster Performance** - Optimized rendering and physics
-- **Complete Audio System** - Professional sound effects and music
-- **Advanced Particle Effects** - Built-in visual effects
-- **Better Error Handling** - Clear messages and graceful degradation
-- **Enhanced Debug Tools** - Visual collision bounds and performance monitoring
+## 🎯 Axarion Studio - Controls
 
-## 🎮 Basic Setup
+### Keyboard Shortcuts
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+N` | New project |
+| `Ctrl+O` | Open project |
+| `Ctrl+S` | Save file |
+| `F5` | Run game |
+| `Shift+F5` | Build EXE |
+| `Ctrl+Shift+A` | Open Asset Manager |
+| `Ctrl+F` | Find in code |
+| `Ctrl+/` | Comment/uncomment |
+| `F11` | Editor fullscreen |
 
-### Minimal Game Template
-```python
-from engine.core import AxarionEngine
-from engine.game_object import GameObject
-import pygame
+### Panels and Windows
+- **Project Explorer** - file and folder management
+- **Asset Manager** - asset import and management
+- **Properties Panel** - object properties
+- **Console Output** - debug and error messages
+- **Code Editor** - main editor with IntelliSense
 
-# Initialize pygame first
-pygame.init()
+## 🎮 Basic Game Setup
 
-# Create engine
-engine = AxarionEngine(800, 600, "My Game")
+### Minimal Template in Axarion Studio
+```javascript
+// Engine with automatic configuration
+var engine = createEngine(800, 600);
+engine.initialize();
 
-# Initialize with error handling
-try:
-    if not engine.initialize():
-        print("⚠️ Engine didn't initialize correctly, but continuing...")
-except Exception as e:
-    print(f"⚠️ Initialization error: {e}")
+// Create scene through Studio API
+var scene = engine.createScene("GameScene");
+engine.currentScene = scene;
 
-# Create scene  
-scene = engine.create_scene("Game")
-engine.current_scene = scene
+// Object with Asset Manager integration
+var player = createGameObject("Player", "sprite");
+player.position = {x: 100, y: 100};
+player.sprite = "player_sprite"; // Automatically found in Asset Manager
 
-# Create object
-obj = GameObject("Player", "rectangle")
-obj.position = (100, 100)
-obj.set_property("width", 40)
-obj.set_property("height", 40)
-obj.set_property("color", (255, 100, 100))
-scene.add_object(obj)
-
-# Game loop
-clock = pygame.time.Clock()
-while engine.running:
-    delta_time = clock.tick(60) / 1000.0
+// Controls with IntelliSense support
+player.update = function() {
+    var speed = 200;
     
-    # Handle events
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            engine.stop()
+    handleInput();
+    updateAnimation();
     
-    # Input handling (choose your style)
-    keys = pygame.key.get_pressed()  # Pygame style
-    # OR use: engine.input.is_key_pressed("w")  # Axarion style
-    
-    # Update and render
-    if engine.current_scene:
-        engine.current_scene.update(delta_time)
-    if engine.renderer:
-        engine.renderer.clear()
-        if engine.current_scene:
-            engine.current_scene.render(engine.renderer)
-        engine.renderer.present()
+    function handleInput() {
+        if (keyPressed("ArrowLeft")) move(-speed * deltaTime(), 0);
+        if (keyPressed("ArrowRight")) move(speed * deltaTime(), 0);
+        if (keyPressed("ArrowUp")) move(0, -speed * deltaTime());
+        if (keyPressed("ArrowDown")) move(0, speed * deltaTime());
+    }
+};
 
-engine.cleanup()
+scene.addObject(player);
+engine.run();
 ```
 
-## 🎹 Input Handling - Two Approaches
+## 🎨 Asset Manager - New Features
 
-### **Pygame Style (Direct)**
-```python
-# Get keyboard state
-keys = pygame.key.get_pressed()
+### Asset Import
+```javascript
+// Automatic loading of all assets
+loadAssets();
 
-# Basic controls
-if keys[pygame.K_w] or keys[pygame.K_UP]:
-    move_up()
-if keys[pygame.K_s] or keys[pygame.K_DOWN]:
-    move_down()
-if keys[pygame.K_a] or keys[pygame.K_LEFT]:
-    move_left()
-if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
-    move_right()
-if keys[pygame.K_SPACE]:
-    shoot()
-
-# Events for one-time actions
-for event in pygame.event.get():
-    if event.type == pygame.KEYDOWN:
-        if event.key == pygame.K_SPACE:
-            jump()  # Only once per press
+// Access assets from Studio
+var sprite = getImage("hero_walk");
+var sound = getSound("sword_hit");
+var animation = getAnimation("explosion");
 ```
 
-### **Axarion Input System (Advanced)**
-```python
-# Import input system
-from engine.input_system import input_system
-
-# Key checking
-if input_system.is_key_pressed("w"):
-    move_up()
-if input_system.is_key_just_pressed("space"):  # Only once
-    jump()
-if input_system.is_key_just_released("space"):  # On release
-    stop_charging()
-
-# Helper functions for movement
-movement = input_system.get_movement_vector()  # (-1,1) to (1,1)
-player.position = (x + movement[0] * speed, y + movement[1] * speed)
-
-# Mouse
-if input_system.is_mouse_clicked(0):  # Left button
-    shoot_at_mouse()
-mouse_pos = input_system.get_mouse_position()
-
-# Axis for analog control
-horizontal = input_system.get_axis("horizontal")  # -1 to 1
-vertical = input_system.get_axis("vertical")      # -1 to 1
+### Asset Store Integration
+```javascript
+// Direct download from Store (in Asset Manager)
+downloadPack("Pixel Adventure Pack");
+player.sprite = "pixel_hero"; // Immediately available
 ```
 
-### **Combining Both Approaches**
-```python
-def handle_input(keys, delta_time):
-    # Pygame for basic movement
-    if keys[pygame.K_w]:
-        move_up(delta_time)
-    
-    # Axarion for advanced actions
-    if input_system.is_key_just_pressed("space"):
-        jump()  # Only once per press
-    
-    if input_system.is_mouse_clicked(0):
-        shoot_at_mouse()
-    
-    # Helper functions
-    movement = input_system.get_movement_vector()
-    if movement != (0, 0):
-        smooth_move(movement, delta_time)
+### Drag & Drop Workflow
+```javascript
+// After dragging into Asset Manager:
+// 1. Files are automatically copied
+// 2. Previews are created
+// 3. Available in code under filename
+
+// Example: dragging "spaceship.png"
+var ship = createGameObject("Ship", "sprite");
+ship.sprite = "spaceship"; // Automatically found
 ```
 
-## 🎯 Complete Player Movement Example
+## 🕹️ Modern Input System
 
-```python
-from engine.core import AxarionEngine
-from engine.game_object import GameObject
-import pygame
-
-# Initialize pygame
-pygame.init()
-
-# Create engine
-engine = AxarionEngine(800, 600, "Player Movement Demo")
-engine.initialize()
-
-# Create scene
-scene = engine.create_scene("Game")
-engine.current_scene = scene
-
-# Create player
-obj = GameObject("Player", "rectangle")
-obj.position = (100, 100)
-obj.set_property("width", 40)
-obj.set_property("height", 40)
-obj.set_property("color", (100, 200, 255))
-obj.is_static = True
-
-# Add behavior
-class PlayerController:
-    def __init__(self, player):
-        self.player = player
-        self.speed = 200
+### Enhanced Controls
+```javascript
+// Better input handling
+function update() {
+    // Classic keys
+    if (keyPressed("Space")) shoot();
+    if (keyJustPressed("Enter")) interact();
+    if (keyReleased("Shift")) stopRunning();
     
-    def update(self, keys, delta_time):
-        x, y = self.player.position
-        if keys[pygame.K_LEFT]:
-            self.player.position = (x - self.speed * delta_time, y)
-        if keys[pygame.K_RIGHT]:
-            self.player.position = (x + self.speed * delta_time, y)
+    // Key combinations
+    if (keyPressed("Ctrl") && keyJustPressed("z")) undo();
+    
+    // Gamepad support
+    if (gamepadPressed(0, "A")) jump();
+    if (gamepadAxis(0, "leftStick") > 0.5) moveRight();
+}
 
-controller = PlayerController(obj)
-scene.add_object(obj)
-
-# Game loop
-clock = pygame.time.Clock()
-while engine.running:
-    delta_time = clock.tick(60) / 1000.0
+// Advanced mouse handling
+function handleMouse() {
+    var mousePos = getMousePosition();
+    var worldPos = screenToWorld(mousePos.x, mousePos.y);
     
-    # Handle events
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            engine.stop()
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                engine.stop()
+    if (mouseJustPressed("left")) {
+        shootAt(worldPos.x, worldPos.y);
+    }
     
-    # Get keys and update
-    keys = pygame.key.get_pressed()
-    controller.update(keys, delta_time)
-    
-    # Update scene
-    if engine.current_scene:
-        engine.current_scene.update(delta_time)
-    
-    # Render
-    if engine.renderer:
-        engine.renderer.clear()
-        if engine.current_scene:
-            engine.current_scene.render(engine.renderer)
-        engine.renderer.present()
-
-engine.cleanup()
+    if (mouseDragged()) {
+        var drag = getMouseDelta();
+        moveCamera(drag.x, drag.y);
+    }
+}
 ```
 
-## 🎯 GameObject Types
+## 🎯 GameObject Types in Studio
 
-| Type | Description | Properties |
-|------|-------------|------------|
-| `"rectangle"` | Colored rectangle | `width`, `height`, `color` |
-| `"circle"` | Colored circle | `radius`, `color` |
-| `"sprite"` | Image/texture | Uses image files |
-| `"animated_sprite"` | Animated frames | Uses animation folders |
+### Supported Types
+| Type | Description | Studio Features |
+|------|-------------|-----------------|
+| `"sprite"` | Image/texture | Live preview, auto-resize |
+| `"animated_sprite"` | Animated frames | Timeline editor, loop control |
+| `"rectangle"` | Colored rectangle | Color picker, gradient fill |
+| `"circle"` | Colored circle | Radius slider, outline options |
+| `"text"` | Text object | Font selector, rich formatting |
+| `"particle_system"` | Particle system | Visual particle editor |
 
-## 🕹️ Input Controls
+### Advanced Objects
+```javascript
+// Particle system through Studio
+var particles = createGameObject("Explosion", "particle_system");
+particles.position = {x: 200, y: 200};
+particles.setParticleConfig({
+    count: 100,
+    lifetime: 2.0,
+    speed: 200,
+    colorStart: {r: 255, g: 255, b: 0},
+    colorEnd: {r: 255, g: 0, b: 0},
+    sizeStart: 5,
+    sizeEnd: 1
+});
 
-### Keyboard Input
-```python
-# Check if key is currently pressed
-keys = pygame.key.get_pressed()
-if keys[pygame.K_SPACE]:
-    # Handle space key
-    pass
-
-if keys[pygame.K_LEFT]:
-    # Handle left arrow
-    pass
-
-# Movement pattern
-class Movement:
-    def __init__(self, player):
-        self.player = player
-        self.speed = 200
-    
-    def update(self, keys, delta_time):
-        x, y = self.player.position
-        if keys[pygame.K_LEFT]:
-            x -= self.speed * delta_time
-        if keys[pygame.K_RIGHT]:
-            x += self.speed * delta_time
-        if keys[pygame.K_UP]:
-            y -= self.speed * delta_time
-        if keys[pygame.K_DOWN]:
-            y += self.speed * delta_time
-        self.player.position = (x, y)
-```
-
-### Mouse Input
-```python
-# Check mouse buttons
-mouse_buttons = pygame.mouse.get_pressed()
-if mouse_buttons[0]:  # Left button
-    # Left button pressed
-    pass
-
-if mouse_buttons[2]:  # Right button
-    # Right button pressed
-    pass
-
-# Get mouse position
-mouse_pos = pygame.mouse.get_pos()
-print(f"Mouse at: {mouse_pos[0]}, {mouse_pos[1]}")
+// Text objects with fonts from Asset Manager
+var text = createGameObject("ScoreText", "text");
+text.setFont("pixel_font", 24); // From Asset Manager
+text.text = "Score: 1000";
+text.color = {r: 255, g: 255, b: 255};
 ```
 
 ## 🏃 Movement and Physics
 
-### Basic Movement
-```python
-# Direct movement
-player.position = (x, y)  # Set exact position
+### Physics System
+```javascript
+// Modern physics
+function initPhysics() {
+    setProperty("mass", 1.0);
+    setProperty("friction", 0.8);
+    setProperty("bounce", 0.3);
+    setProperty("gravityScale", 1.0);
+}
 
-# Velocity-based movement
-class VelocityMovement:
-    def __init__(self, obj):
-        self.obj = obj
-        self.velocity = [0, 0]
+function update() {
+    // Force-based movement
+    var moveForce = 500;
+    if (keyPressed("a")) applyForce(-moveForce, 0);
+    if (keyPressed("d")) applyForce(moveForce, 0);
     
-    def update(self, delta_time):
-        x, y = self.obj.position
-        x += self.velocity[0] * delta_time
-        y += self.velocity[1] * delta_time
-        self.obj.position = (x, y)
+    // Impulse jump
+    if (keyJustPressed("w") && isGrounded()) {
+        applyImpulse(0, -800);
+        playSound("jump");
+    }
     
-    def set_velocity(self, vx, vy):
-        self.velocity = [vx, vy]
+    // Air control
+    if (!isGrounded()) {
+        var airControl = 0.2;
+        if (keyPressed("a")) applyForce(-moveForce * airControl, 0);
+        if (keyPressed("d")) applyForce(moveForce * airControl, 0);
+    }
+}
 ```
 
-### Platformer Movement
-```python
-class PlatformerController:
-    def __init__(self, player):
-        self.player = player
-        self.speed = 200
-        self.jump_force = 400
-        self.velocity_y = 0
-        self.gravity = 980
-        self.on_ground = False
+### Advanced Platformer
+```javascript
+var playerController = {
+    speed: 300,
+    jumpForce: 600,
+    airControl: 0.3,
+    coyoteTime: 0.1,
+    jumpBuffer: 0.1
+};
+
+function update() {
+    handleMovement();
+    handleJumping();
+    updateAnimations();
+}
+
+function handleMovement() {
+    var input = getHorizontalInput(); // -1, 0, or 1
+    var targetSpeed = input * playerController.speed;
+    var speedDiff = targetSpeed - getVelocity().x;
     
-    def update(self, keys, delta_time):
-        x, y = self.player.position
+    var acceleration = isGrounded() ? 10 : 5; // Faster acceleration on ground
+    applyForce(speedDiff * acceleration, 0);
+}
+
+function handleJumping() {
+    if (keyJustPressed("Space")) {
+        if (canJump()) {
+            jump();
+        } else {
+            bufferJump(); // Jump buffering
+        }
+    }
+    
+    // Variable jump height
+    if (keyReleased("Space") && getVelocity().y < 0) {
+        var vel = getVelocity();
+        setVelocity(vel.x, vel.y * 0.5); // Shorter jump
+    }
+}
+```
+
+## 💥 Collision Detection in Studio
+
+### Modern Collisions
+```javascript
+// Collision layers (set in Studio)
+function setupCollisions() {
+    setCollisionLayer("player");
+    setCollisionMask(["enemies", "pickups", "platforms"]);
+}
+
+function update() {
+    // Advanced collision detection
+    var collisions = getDetailedCollisions();
+    
+    for (var i = 0; i < collisions.length; i++) {
+        var collision = collisions[i];
+        handleCollision(collision.object, collision.normal, collision.point);
+    }
+}
+
+function handleCollision(other, normal, point) {
+    if (other.hasTag("enemy")) {
+        takeDamage(other.getDamage());
+        createHitEffect(point.x, point.y);
+        playSound("hurt");
         
-        # Horizontal movement
-        if keys.get("ArrowLeft"):
-            x -= self.speed * delta_time
-        if keys.get("ArrowRight"):
-            x += self.speed * delta_time
-        
-        # Jumping
-        if keys.get("Space") and self.on_ground:
-            self.velocity_y = -self.jump_force
-            self.on_ground = False
-        
-        # Apply gravity
-        self.velocity_y += self.gravity * delta_time
-        y += self.velocity_y * delta_time
-        
-        # Ground collision (simplified)
-        if y > 500:  # Ground level
-            y = 500
-            self.velocity_y = 0
-            self.on_ground = True
-        
-        self.player.position = (x, y)
-```
-
-### Top-Down Movement
-```python
-class TopDownController:
-    def __init__(self, player):
-        self.player = player
-        self.speed = 150
+        // Knockback
+        var knockback = 300;
+        applyImpulse(normal.x * knockback, normal.y * knockback);
+    }
     
-    def update(self, keys, delta_time):
-        x, y = self.player.position
-        
-        if keys.get("w"):
-            y -= self.speed * delta_time
-        if keys.get("s"):
-            y += self.speed * delta_time
-        if keys.get("a"):
-            x -= self.speed * delta_time
-        if keys.get("d"):
-            x += self.speed * delta_time
-        
-        self.player.position = (x, y)
+    if (other.hasTag("pickup")) {
+        other.collect();
+        playSound("coin");
+        addScore(100);
+    }
+}
 ```
 
-## 💥 Collision Detection
+### Trigger Zones
+```javascript
+// Invisible trigger objects
+function onTriggerEnter(other) {
+    if (other.hasTag("player")) {
+        showDialog("Welcome to new area!");
+        playMusic("area_theme");
+    }
+}
 
-### Basic Collision
-```python
-def check_collision(obj1, obj2):
-    """Check collision between two objects"""
-    x1, y1 = obj1.position
-    x2, y2 = obj2.position
+function onTriggerExit(other) {
+    if (other.hasTag("player")) {
+        hideDialog();
+        stopMusic();
+    }
+}
+```
+
+## 🔊 Audio System in Studio
+
+### Advanced Sound
+```javascript
+// 3D positional audio
+function playPositionalSound(soundName, x, y, volume, pitch) {
+    var distance = distanceToPlayer(x, y);
+    var adjustedVolume = volume * (1.0 - distance / 500.0); // Fade with distance
     
-    # Circle collision
-    distance = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
-    return distance < 30  # Adjust based on object sizes
+    playSound(soundName, {
+        volume: adjustedVolume,
+        pitch: pitch,
+        position: {x: x, y: y}
+    });
+}
 
-def check_rect_collision(obj1, obj2):
-    """Check rectangular collision"""
-    x1, y1 = obj1.position
-    w1, h1 = obj1.get_property("width"), obj1.get_property("height")
-    x2, y2 = obj2.position
-    w2, h2 = obj2.get_property("width"), obj2.get_property("height")
+// Audio mixing
+function setupAudio() {
+    setMasterVolume(1.0);
+    setMusicVolume(0.7);
+    setSFXVolume(0.8);
+    setVoiceVolume(1.0);
+}
+
+// Dynamic music
+function updateMusic() {
+    var playerHealth = getProperty("health");
     
-    return (x1 < x2 + w2 and x1 + w1 > x2 and 
-            y1 < y2 + h2 and y1 + h1 > y2)
+    if (playerHealth < 30) {
+        playMusic("tension_theme", 0.5); // Fade in over 0.5s
+    } else {
+        playMusic("normal_theme", 1.0);
+    }
+}
 ```
 
-### Using Tags for Groups
-```python
-# Set up tags
-enemy.add_tag("enemy")
-pickup.add_tag("collectible")
+## 🎨 Visual Effects
 
-# Check collisions by tag
-enemies = scene.find_objects_by_tag("enemy")
-for enemy in enemies:
-    if check_collision(player, enemy):
-        print("Hit enemy!")
+### Particle Systems
+```javascript
+// Create effect in Studio
+var explosionEffect = createGameObject("Explosion", "particle_system");
+explosionEffect.setParticleConfig({
+    texture: "spark", // From Asset Manager
+    count: 50,
+    lifetime: 1.5,
+    spawnRate: 100,
+    speedMin: 100,
+    speedMax: 300,
+    directionMin: 0,
+    directionMax: 360,
+    sizeStart: 3,
+    sizeEnd: 0,
+    colorStart: {r: 255, g: 255, b: 100},
+    colorEnd: {r: 255, g: 0, b: 0},
+    alphaStart: 1.0,
+    alphaEnd: 0.0
+});
 ```
 
-## 🎨 Visual Properties
-
-### Colors and Appearance
-```python
-# Set color (RGB values 0-255)
-obj.set_property("color", (255, 100, 50))
-
-# Set size
-obj.set_property("width", 50)
-obj.set_property("height", 30)
-obj.set_property("radius", 25)  # For circles
-
-# Visibility
-obj.set_property("visible", True)
-obj.set_property("visible", False)
-```
-
-### Using Sprites
-```python
-# Load and set sprite
-from engine.asset_manager import asset_manager
-asset_manager.load_all_assets()
-
-player = GameObject("Player", "sprite")
-player.set_sprite("ship")  # Uses ship.png
-```
-
-### Animations
-```python
-# Set animation
-player = GameObject("Player", "animated_sprite")
-player.set_animation("explosion", speed=2.0, loop=True)
-
-# Control animations
-player.play_animation("walk")
-player.pause_animation()
-player.resume_animation()
-player.stop_animation()
-```
-
-## 🔊 Audio
-
-### Sound Effects
-```python
-from engine.audio_system import AudioSystem
-audio = AudioSystem()
-
-# Play sound once
-audio.play_sound("jump")
-audio.play_sound("explosion")
-
-# Play with loops
-audio.play_sound("background_music", loop=True)
-```
-
-### Music
-```python
-# Background music
-audio.play_music("level_music.mp3")
-audio.stop_music()
-audio.set_volume(0.7)  # 70% volume
-```
-
-## 🧮 Math and Utilities
-
-### Common Math Functions
-```python
-import math
-
-# Basic math
-result = math.sin(angle)
-result = math.cos(angle)
-result = math.sqrt(16)        # = 4
-result = abs(-5)              # = 5
-
-# Utility functions
-def distance(x1, y1, x2, y2):
-    return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-
-def clamp(value, min_val, max_val):
-    return max(min_val, min(value, max_val))
-
-def lerp(start, end, t):
-    return start + (end - start) * t
-
-# Random values
-import random
-rand = random.random()         # 0.0 to 1.0
-rand_int = random.randint(1, 10)  # 1 to 10
-```
-
-## 🎯 Game Object Management
-
-### Creating Objects Dynamically
-```python
-# Create new object
-def create_bullet(x, y):
-    bullet = GameObject("Bullet", "circle")
-    bullet.position = (x, y)
-    bullet.set_property("radius", 3)
-    bullet.set_property("color", (255, 255, 0))
-    scene.add_object(bullet)
-    return bullet
-
-# Find objects
-player = scene.find_object_by_name("Player")
-enemies = scene.find_objects_by_tag("enemy")
-
-# Destroy objects
-scene.remove_object(obj)
-```
-
-### Object Properties
-```python
-# Get/set custom properties
-obj.set_property("health", 100)
-health = obj.get_property("health")
-
-# Position and other properties
-pos = obj.position
-obj.position = (100, 200)
-```
-
-### Tags and Organization
-```python
-# Organize with tags
-player.add_tag("player")
-enemy.add_tag("enemy")
-enemy.add_tag("flying")
-
-# Check tags
-if enemy.has_tag("flying"):
-    print("This enemy can fly!")
-
-# Find by tags
-tagged = scene.find_objects_by_tag("collectible")
-```
-
-## ⚡ Advanced Patterns
-
-### Simple AI - Follow Player
-```python
-class EnemyAI:
-    def __init__(self, enemy, player):
-        self.enemy = enemy
-        self.player = player
-        self.speed = 100
+### Screen Effects
+```javascript
+// Camera shake
+function createExplosion(x, y) {
+    // Particles
+    createParticleEffect("explosion", x, y);
     
-    def update(self, delta_time):
-        # Move towards player
-        enemy_x, enemy_y = self.enemy.position
-        player_x, player_y = self.player.position
-        
-        # Calculate direction
-        dx = player_x - enemy_x
-        dy = player_y - enemy_y
-        distance = math.sqrt(dx*dx + dy*dy)
-        
-        if distance > 0:
-            # Normalize and move
-            dx /= distance
-            dy /= distance
-            
-            new_x = enemy_x + dx * self.speed * delta_time
-            new_y = enemy_y + dy * self.speed * delta_time
-            self.enemy.position = (new_x, new_y)
+    // Screen shake
+    shakeCamera(0.5, 10); // 0.5s duration, 10 pixel intensity
+    
+    // Flash effect
+    flashScreen(255, 255, 255, 0.1); // White flash for 0.1s
+    
+    // Slow motion
+    setTimeScale(0.3, 0.2); // 30% speed for 0.2s
+}
+
+// Post-processing effects
+function applyVisualEffects() {
+    if (playerInWater()) {
+        setScreenTint(100, 150, 255, 0.3); // Blue tint
+        setScreenBlur(2.0);
+    } else {
+        clearScreenEffects();
+    }
+}
 ```
 
-### Health System
-```python
-class HealthSystem:
-    def __init__(self, obj, max_health=100):
-        self.obj = obj
-        self.max_health = max_health
-        self.current_health = max_health
-    
-    def take_damage(self, amount):
-        self.current_health -= amount
-        if self.current_health <= 0:
-            self.die()
-    
-    def heal(self, amount):
-        self.current_health = min(self.max_health, self.current_health + amount)
-    
-    def die(self):
-        # Death logic
-        print(f"{self.obj.name} destroyed!")
-        # Remove from scene, create explosion, etc.
+## 🧮 Utility Functions in Studio
+
+### Extended Mathematical Functions
+```javascript
+// Vector operations
+function vectorAdd(v1, v2) {
+    return {x: v1.x + v2.x, y: v1.y + v2.y};
+}
+
+function vectorLength(v) {
+    return Math.sqrt(v.x * v.x + v.y * v.y);
+}
+
+function vectorNormalize(v) {
+    var len = vectorLength(v);
+    return {x: v.x / len, y: v.y / len};
+}
+
+// Smoothing functions
+function smoothStep(edge0, edge1, x) {
+    var t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+}
+
+function easeInOut(t) {
+    return t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+}
 ```
 
-### Simple Shooting
-```python
-class ShootingSystem:
-    def __init__(self, obj, scene):
-        self.obj = obj
-        self.scene = scene
-        self.shoot_cooldown = 0
+### Time and Tweening
+```javascript
+// Tween system
+var tween = createTween();
+tween.to({x: 300, y: 200}, 2.0)  // 2 seconds
+     .ease("easeInOutQuad")
+     .onComplete(function() {
+         playSound("arrival");
+     });
+
+// Timer system
+var timer = createTimer(3.0, function() {
+    spawnEnemy();
+}, true); // true = repeat
+
+// Coroutine system
+function* moveSequence() {
+    yield moveTo(100, 100, 1.0);
+    yield wait(0.5);
+    yield moveTo(200, 100, 1.0);
+    yield playAnimation("victory");
+}
+```
+
+## 🎯 Design Patterns for Studio
+
+### Component System
+```javascript
+// Components for game objects
+function HealthComponent(maxHealth) {
+    this.maxHealth = maxHealth || 100;
+    this.currentHealth = this.maxHealth;
     
-    def update(self, keys, delta_time):
-        self.shoot_cooldown -= delta_time
-        
-        if keys.get("Space") and self.shoot_cooldown <= 0:
-            self.shoot()
-            self.shoot_cooldown = 0.3  # 0.3 seconds between shots
+    this.takeDamage = function(amount) {
+        this.currentHealth -= amount;
+        if (this.currentHealth <= 0) {
+            this.die();
+        }
+    };
     
-    def shoot(self):
-        x, y = self.obj.position
-        bullet = GameObject("Bullet", "circle")
-        bullet.position = (x + 16, y)
-        bullet.set_property("radius", 3)
-        bullet.set_property("color", (255, 255, 0))
-        self.scene.add_object(bullet)
-```
+    this.die = function() {
+        // Trigger death sequence
+    };
+}
 
-### Collectible Items
-```python
-class CollectibleSystem:
-    def __init__(self, scene):
-        self.scene = scene
-        self.score = 0
+function MovementComponent(speed) {
+    this.speed = speed || 100;
+    this.velocity = {x: 0, y: 0};
     
-    def update(self, player):
-        collectibles = self.scene.find_objects_by_tag("collectible")
-        for item in collectibles:
-            if check_collision(player, item):
-                # Give player points/power/etc
-                self.score += 10
-                self.scene.remove_object(item)
-                print(f"Score: {self.score}")
+    this.update = function(dt) {
+        // Apply movement logic
+    };
+}
+
+// Usage in GameObject
+var player = createGameObject("Player", "sprite");
+player.addComponent(new HealthComponent(100));
+player.addComponent(new MovementComponent(200));
 ```
 
-## 🎮 Game Genres Quick Start
-
-### Platformer Essentials
-- Use physics for movement with gravity
-- Check ground collision before jumping
-- Create static platforms
-- Implement moving platforms
-
-### Top-Down Shooter
-- 8-directional movement with WASD
-- Bullet spawning and movement
-- Implement cooldown timers for shooting
-- Use tags for different bullet types
-
-### Puzzle Game
-- Grid-based movement
-- Turn-based logic with state management
-- Check win conditions after each move
-- Use static objects for walls/obstacles
-
-### Racing Game
-- Velocity-based movement
-- Implement acceleration and braking
-- Add friction for realistic handling
-- Create checkpoints with collision detection
-
-## 🐛 Common Issues & Solutions
-
-| Problem | Solution |
-|---------|----------|
-| Object not moving | Check if `update()` method is being called |
-| Collision not detected | Ensure collision detection is implemented |
-| Sound not playing | Check file exists in `assets/sounds/` folder |
-| Jerky movement | Use `delta_time` in movement calculations |
-| Object falls through ground | Check collision detection and response |
-| Game crashes | Check console output for error messages |
-
-## 📁 File Organization
-
-```
-your_game/
-├── my_game.py          # Main game file
-├── assets/
-│   ├── images/         # PNG, JPG files
-│   ├── sounds/         # WAV, MP3 files
-│   └── animations/     # Folders with frame sequences
-└── game_logic/         # Additional Python modules
+### State Machine
+```javascript
+// Finite State Machine
+var stateMachine = {
+    currentState: "idle",
+    states: {
+        "idle": {
+            enter: function() { playAnimation("idle"); },
+            update: function() { 
+                if (keyPressed("ArrowRight")) {
+                    stateMachine.changeState("walking");
+                }
+                if (keyJustPressed("Space")) {
+                    stateMachine.changeState("jumping");
+                }
+            },
+            exit: function() { }
+        },
+        "walking": {
+            enter: function() { playAnimation("walk"); },
+            update: function() {
+                move(200 * deltaTime(), 0);
+                if (!keyPressed("ArrowRight")) {
+                    stateMachine.changeState("idle");
+                }
+            },
+            exit: function() { }
+        }
+    },
+    
+    changeState: function(newState) {
+        this.states[this.currentState].exit();
+        this.currentState = newState;
+        this.states[this.currentState].enter();
+    }
+};
 ```
 
-## ⌨️ Debug Commands
+## 🔧 Studio Optimization
 
-While game is running:
-- `D` - Toggle debug mode (shows collision boxes)
-- `F` - Toggle performance stats
-- `ESC` - Exit game
-- Check console output for errors and print statements
+### Performance Tips
+```javascript
+// Object pooling for bullets
+function BulletPool(size) {
+    this.bullets = [];
+    this.size = size || 50;
+    
+    for (var i = 0; i < this.size; i++) {
+        var bullet = createGameObject("Bullet_" + i, "sprite");
+        bullet.active = false;
+        this.bullets.push(bullet);
+    }
+    
+    this.getBullet = function() {
+        for (var i = 0; i < this.bullets.length; i++) {
+            if (!this.bullets[i].active) {
+                this.bullets[i].active = true;
+                return this.bullets[i];
+            }
+        }
+        return null;
+    };
+    
+    this.returnBullet = function(bullet) {
+        bullet.active = false;
+        bullet.position = {x: -100, y: -100}; // Off screen
+    };
+}
+```
 
-This reference covers 90% of what you need to make games with Axarion Engine. For advanced features, see the full documentation in `DOCS.md`!
+### Batch Rendering
+```javascript
+// Group draw calls
+function optimizeRendering() {
+    // Sort objects by texture
+    sortObjectsByTexture();
+    
+    // Batch draw similar objects
+    drawBatch("enemy_sprites");
+    drawBatch("particle_effects");
+    
+    // Cull off-screen objects
+    cullOffscreenObjects();
+}
+```
+
+## 📁 Project Structure in Studio
+
+### Modern Organization
+```
+MyGame/
+├── game.js                 # Entry point
+├── project.json           # Studio configuration
+├── scenes/                # Game scenes
+│   ├── menu.js           # Main menu
+│   ├── level1.js         # First level
+│   └── boss_fight.js     # Boss scene
+├── scripts/              # Script files
+│   ├── player.js         # Player logic
+│   ├── enemy_ai.js       # Enemy AI
+│   └── ui_manager.js     # UI handling
+├── components/           # Reusable components
+│   ├── health.js
+│   ├── movement.js
+│   └── inventory.js
+├── assets/              # Asset Manager folders
+│   ├── images/          # Automatically managed
+│   ├── sounds/          # Drag & drop import
+│   ├── music/           # Background tracks
+│   └── fonts/           # Fonts
+└── build/              # Built outputs
+    ├── windows/        # EXE for Windows
+    ├── web/           # HTML5 export
+    └── mobile/        # Mobile builds
+```
+
+## ⚡ Studio Workflow Tips
+
+### Rapid Development
+1. **Live Coding** - changes appear immediately
+2. **Asset Hot-reload** - drag new asset → immediately available
+3. **Quick Play** - F5 runs game without compilation
+4. **Error Highlights** - errors highlighted in editor
+5. **IntelliSense** - automatic code completion
+
+### Debugging Workflow
+```javascript
+// Studio debug functions
+if (engine.debugMode) {
+    // Show collision bounds
+    scene.showCollisionBounds = true;
+    
+    // FPS counter
+    engine.showPerformance = true;
+    
+    // Object inspector
+    engine.showObjectInfo = true;
+    
+    // Console commands
+    console.registerCommand("teleport", teleportPlayer);
+    console.registerCommand("giveItem", giveItem);
+    console.registerCommand("killAll", killAllEnemies);
+}
+```
+
+## 🎉 Export and Distribution
+
+### Build System
+```bash
+# Build through Studio GUI or command line
+python build_studio.py
+
+# Build options:
+# --windows      - Windows EXE
+# --web          - HTML5/WebGL
+# --steam        - Steam package
+# --mobile       - Android APK (coming soon)
+```
+
+### Automatic Build Optimizations
+- **Asset compression** - automatic file reduction
+- **Code minification** - code size reduction
+- **Texture atlas** - merge small textures
+- **Audio compression** - optimize audio files
+- **Dependency bundling** - package all dependencies
+
+---
+
+**This reference covers 95% of what you need to know for developing in Axarion Studio!**
+
+*For advanced features, check the full documentation or use the built-in help system in Studio (F1).*
+
+**Axarion Studio - The future of 2D game development is here!** 🎮✨

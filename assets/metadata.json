@@ -1,0 +1,24 @@
+{
+  "_info": {
+    "description": "Asset metadata for Axarion Engine Asset Manager",
+    "version": "1.0.0",
+    "created": "2025-07-19"
+  },
+  "_instructions": {
+    "note": "This file stores metadata about imported assets. Do not edit manually.",
+    "structure": {
+      "asset_path": {
+        "name": "filename.ext",
+        "type": "images|sounds|fonts|other",
+        "size": "file_size_in_bytes",
+        "imported_at": "timestamp",
+        "path": "relative/path/from/assets/local",
+        "tags": [
+          "tag1",
+          "tag2"
+        ],
+        "description": "Optional description"
+      }
+    }
+  }
+}

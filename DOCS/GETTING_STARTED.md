@@ -1,688 +1,452 @@
 
-# 🚀 Getting Started with Axarion Engine
+# 🚀 Getting Started with Axarion Studio
 
-Welcome to Axarion Engine - the next-generation successor to VoidRay Engine! This guide will help you create your first game in just a few minutes, even if you're completely new to programming or game development.
+Welcome to Axarion Studio - a professional development environment for creating 2D games! This guide will help you create your first game in just a few minutes, even if you're a complete beginner in programming or game development.
 
-## 🎯 What is Axarion Engine?
+## 🎯 What is Axarion Studio?
 
-Axarion Engine is a **code-first 2D game engine** built as the improved evolution of VoidRay Engine. Unlike its predecessor, Axarion offers significantly better performance, more features, and enhanced stability while maintaining the same simple, code-focused approach.
+Axarion Studio is a **complete development environment** combining an advanced code editor with a powerful 2D game engine. Unlike complex tools like Unity or Godot, Axarion Studio focuses on simplicity and rapid development.
 
-### 🚀 Major Improvements Over VoidRay:
-- **3x Faster Performance** - Optimized rendering and physics
-- **Complete Audio System** - Full sound effects and music (VoidRay had limited audio)
-- **Advanced Particle Effects** - Built-in explosion, fire, and smoke effects
-- **Better Error Handling** - Graceful degradation and clear error messages
-- **Pure Python Scripting** - Clean, readable Python code for game logic
-- **Professional Asset Pipeline** - Automatic loading and management
-- **Visual Debug Tools** - Collision bounds, performance monitoring
+### 🚀 Key Features of Axarion Studio:
+- **Modern dark interface** with gradient effects and purple-blue theme
+- **Integrated Asset Manager** with access to Asset Store
+- **Syntax highlighting** with IntelliSense
+- **Instant testing** - run your game with one click
+- **Project management** with automatic saving
+- **Drag & Drop import** of assets directly into projects
+- **Automatic compilation** of games into standalone EXE files
 
-Axarion Engine is perfect for:
+## ⚡ Quick Start (5 minutes to your first game!)
 
-- **Beginners** learning game programming
-- **Programmers** who prefer code over visual tools
-- **Educators** teaching game development concepts
-- **Rapid prototyping** of game ideas
+### Step 1: Launch Axarion Studio
 
-## ⚡ Quick Start (5 Minutes to Your First Game!)
-
-### Step 1: Experience Next-Gen Performance
-
-Let's see the improved Axarion Engine in action! Click the **Run** button or type:
+Start Axarion Studio:
 
 ```bash
-python test_fixed_engine.py
+python axarion_studio.py
 ```
 
-You'll see our enhanced physics demo featuring:
-- A blue player character with smooth, responsive controls
-- Realistic bouncing balls with improved physics simulation
-- Solid platforms with perfect collision detection
-- Advanced debug visualization (much better than VoidRay!)
-- Smooth 60 FPS performance optimization
+You'll see a modern dark environment with a purple-blue theme. This is your new development environment!
 
-**Enhanced Controls:**
-- `WASD` or `Arrow Keys` - Fluid player movement
-- `Space` - Realistic jumping with proper physics
-- `D` - Toggle advanced debug mode (shows collision bounds)
-- `F` - Performance monitoring (NEW!)
-- `ESC` - Exit
+### Step 2: Create a New Project
 
-*Notice how much smoother and more responsive this feels compared to VoidRay Engine!*
+1. Click **"New Project"**
+2. Enter project name (e.g., "My First Game")
+3. Studio automatically creates project structure with:
+   - Main game file
+   - Asset folders (images, sounds)
+   - Configuration files
 
-### Step 2: Try the Assets Demo
+### Step 3: Understanding the Studio Interface
 
-See sprites and animations in action:
+**Main Areas:**
+- **Code Editor** (center) - where you write code
+- **Project Explorer** (left) - file management
+- **Properties** (right) - object settings
+- **Asset Manager** - image, sound, animation management
+- **Console** (bottom) - output and errors
+
+### Step 4: Your First Code
+
+Studio creates a basic template:
+
+```javascript
+/*
+My First Game - Axarion Engine
+
+Created in Axarion Studio
+*/
+
+// Create game engine
+var engine = createEngine(800, 600);
+engine.initialize();
+
+// Create scene
+var scene = engine.createScene("My Scene");
+engine.currentScene = scene;
+
+// Create player
+var player = createGameObject("Player", "rectangle");
+player.position = {x: 100, y: 100};
+player.width = 50;
+player.height = 50;
+player.color = {r: 100, g: 200, b: 255};
+
+// Add movement controls
+player.update = function() {
+    var speed = 200;
+    
+    // Movement using arrow keys
+    if (keyPressed("ArrowLeft")) {
+        this.position.x -= speed * deltaTime();
+    }
+    if (keyPressed("ArrowRight")) {
+        this.position.x += speed * deltaTime();
+    }
+    if (keyPressed("ArrowUp")) {
+        this.position.y -= speed * deltaTime();
+    }
+    if (keyPressed("ArrowDown")) {
+        this.position.y += speed * deltaTime();
+    }
+};
+
+// Add player to scene
+scene.addObject(player);
+
+// Start the game!
+engine.run();
+```
+
+### Step 5: Running the Game
+
+Simply press **F5** or click the **"Run"** button. Your game will start immediately!
+
+## 🎨 New Asset Manager
+
+### Importing Assets
+
+Axarion Studio has a revolutionary asset import system:
+
+1. **Drag & Drop Import:**
+   - Drag images directly into Asset Manager
+   - Automatically copied to correct folders
+   - Immediately available in code
+
+2. **Asset Store Integration:**
+   - Thousands of free assets
+   - One-click downloads
+   - Automatic categorization
+
+3. **Smart Detection:**
+   - Studio automatically recognizes file types
+   - Creates image previews
+   - Optimizes for game use
+
+### Using Assets in Code
+
+```javascript
+// Load all assets
+loadAssets();
+
+// Use an image
+player.sprite = "ship"; // Uses ship.png from Asset Manager
+
+// Play sound
+if (keyPressed("Space")) {
+    playSound("laser"); // Plays laser.wav
+}
+```
+
+## 🎮 New Coding Features
+
+### IntelliSense and Code Completion
+
+Studio provides:
+- **Automatic completion** of functions and variables
+- **Context help** for functions
+- **Real-time error highlighting**
+- **Code snippets** for common tasks
+
+### Modern Debugging
+
+```javascript
+// Use print() for debug output
+print("Player position: " + player.position.x + ", " + player.position.y);
+
+// Check for errors in real-time
+function update() {
+    var pos = getProperty("position");
+    print("X: " + pos.x + ", Y: " + pos.y);
+}
+```
+
+### Live Reload
+
+Studio automatically:
+- **Saves changes** while typing
+- **Detects errors** immediately
+- **Reloads assets** when changed
+
+## 🏗️ Project Structure in Axarion Studio
+
+```
+My_Game/
+├── game.js              # Main game file
+├── project.json         # Project configuration
+├── assets/              # Assets
+│   ├── images/          # Images, sprites
+│   ├── sounds/          # Sound effects, music
+│   ├── animations/      # Animations
+│   └── fonts/           # Fonts
+├── scenes/              # Game scenes
+├── scripts/             # Script files
+└── build/               # Built EXE files
+```
+
+## 🎯 Creating a Complete Game - Step by Step
+
+### 1. Asset Preparation
+
+**Importing Images:**
+1. Open Asset Manager (folder icon)
+2. Drag PNG files into "Images" section
+3. Studio automatically optimizes them
+
+**Adding Sounds:**
+1. Drag WAV/MP3 files
+2. Test sounds directly in Asset Manager
+3. Use in code with one line
+
+### 2. Creating Game Objects
+
+```javascript
+// Modern way of creating objects
+var engine = createEngine(1024, 768);
+engine.initialize();
+
+// Scene with environment
+var scene = engine.createScene("Level1");
+scene.setBackgroundColor(20, 30, 80); // Dark blue
+scene.setGravity(0, 400); // Gravity for platforms
+
+// Player with sprite
+var player = createGameObject("Player", "sprite");
+player.position = {x: 100, y: 500};
+player.sprite = "hero"; // Automatically finds hero.png
+player.addTag("player");
+
+// Modern controls with better functions
+player.update = function() {
+    var speed = 250;
+    var jumpForce = 500;
+    var health = 100;
+    
+    handleMovement();
+    handleCombat();
+    checkCollisions();
+    
+    function handleMovement() {
+        // Smooth movement
+        if (keyPressed("a") || keyPressed("ArrowLeft")) {
+            applyForce(-speed, 0);
+        }
+        if (keyPressed("d") || keyPressed("ArrowRight")) {
+            applyForce(speed, 0);
+        }
+        
+        // Jump only on ground
+        if (keyJustPressed("w") || keyJustPressed("Space")) {
+            if (isOnGround()) {
+                applyForce(0, -jumpForce);
+                playSound("jump");
+            }
+        }
+    }
+    
+    function handleCombat() {
+        if (keyJustPressed("x")) {
+            attack();
+            playSound("sword");
+        }
+    }
+    
+    function checkCollisions() {
+        var enemies = findObjectsByTag("enemy");
+        for (var i = 0; i < enemies.length; i++) {
+            if (isCollidingWith(enemies[i].name)) {
+                takeDamage(10);
+                createEffect("hit", getProperty("position"));
+            }
+        }
+    }
+};
+
+scene.addObject(player);
+```
+
+### 3. Adding Enemies and Logic
+
+```javascript
+// Create enemy with AI
+var enemy = createGameObject("Enemy1", "sprite");
+enemy.position = {x: 400, y: 500};
+enemy.sprite = "skeleton";
+enemy.addTag("enemy");
+
+enemy.update = function() {
+    var speed = 100;
+    var health = 50;
+    var attackCooldown = 0;
+    
+    attackCooldown -= deltaTime();
+    
+    // AI - track player
+    var player = findObjectByName("Player");
+    if (player) {
+        var playerPos = player.getProperty("position");
+        var myPos = getProperty("position");
+        
+        // Move towards player
+        if (distance(myPos.x, myPos.y, playerPos.x, playerPos.y) > 50) {
+            moveTowards(playerPos.x, playerPos.y, speed);
+        } else if (attackCooldown <= 0) {
+            attack();
+            attackCooldown = 2.0;
+        }
+    }
+};
+
+scene.addObject(enemy);
+```
+
+## 🎨 Advanced Studio Features
+
+### Visual Scripting Support
+
+Studio supports hybrid approach:
+- **Game logic** code
+- **Object behavior** scripts
+- **Visual nodes** for complex interactions (coming soon)
+
+### Asset Store Integration
+
+```javascript
+// Direct download from Store
+downloadPack("Medieval Knight Pack");
+downloadPack("8-bit Sound Effects");
+
+// Automatically available in code
+player.sprite = "knight_idle";
+```
+
+### Automatic Building
+
+Studio can create standalone EXE:
+
+1. **Menu → Build → Create Executable**
+2. Studio automatically:
+   - Packages all assets
+   - Creates EXE file
+   - Adds application icon
+   - Optimizes file size
+
+## 🔧 Tips for Efficient Development
+
+### 1. Use Code Snippets
+
+Studio contains pre-made blocks:
+- `player_movement` - basic controls
+- `collision_detection` - collision detection
+- `sound_system` - sound effects
+- `particle_effects` - visual effects
+
+### 2. Real-time Preview
+
+Changes appear immediately:
+- Edit code → automatic save
+- Change asset → instant reload
+- Syntax error → immediate warning
+
+### 3. Project Templates
+
+Studio offers ready templates:
+- **Platformer** - jumping game
+- **Top-down Shooter** - bird's eye view shooter
+- **Puzzle Game** - logic game
+- **RPG Template** - RPG basics
+
+## 🐛 Debugging and Troubleshooting
+
+### Integrated Debugging Tools
+
+```javascript
+// Activate debug mode
+engine.debugMode = true;
+
+// Show collision boxes
+scene.showCollisionBounds = true;
+
+// Performance monitoring
+engine.showFPS = true;
+```
+
+### Common Problems and Solutions
+
+| Problem | Solution |
+|---------|----------|
+| Object doesn't move | Check if it has `update()` function |
+| Image doesn't display | Verify path in Asset Manager |
+| Sound doesn't play | Check file format (WAV recommended) |
+| Game is slow | Reduce object count or use object pooling |
+
+### Console Output
+
+Studio shows detailed information:
+```
+✅ Engine initialized (800x600)
+✅ Loaded sprite: hero (32x48)
+✅ Scene created: Level1
+🎵 Playing sound: background_music
+⚠️ Warning: Object outside screen bounds
+❌ Error: Sprite 'missing_image' not found
+```
+
+## 🎉 Completion and Sharing
+
+### Project Export
+
+Studio allows several export methods:
+
+1. **Standalone EXE** - for Windows
+2. **Web build** - for browsers
+3. **Project package** - for sharing with others
+
+### Publishing on Replit
 
 ```bash
-python test_assets_demo.py
+# Automatic deployment
+python build_studio.py --deploy
 ```
 
-This shows how to use images, animations, and visual effects in your games.
-
-### Step 3: Create Your First Game
-
-Now let's make your own game! Create a new file called `my_first_game.py`:
-
-```python
-from engine.core import AxarionEngine
-from engine.game_object import GameObject
-import pygame
-
-# Initialize pygame first
-pygame.init()
-
-# Create the game engine
-engine = AxarionEngine(800, 600, "My First Game")
-
-# Initialize with error handling
-try:
-    if not engine.initialize():
-        print("⚠️ Engine didn't initialize correctly, but continuing...")
-except Exception as e:
-    print(f"⚠️ Initialization error: {e}")
-
-# Create a scene
-scene = engine.create_scene("My First Game")
-engine.current_scene = scene
-
-# Create a player character
-player = GameObject("Player", "rectangle")
-player.position = (100, 100)
-player.set_property("width", 40)
-player.set_property("height", 40)
-player.set_property("color", (100, 200, 255))
-player.is_static = True
-
-# Add simple movement with Python
-class PlayerController:
-    def __init__(self, player):
-        self.player = player
-        self.speed = 200
-    
-    def update(self, keys, delta_time):
-        x, y = self.player.position
-        # Move with arrow keys
-        if keys[pygame.K_LEFT]:
-            self.player.position = (x - self.speed * delta_time, y)
-        if keys[pygame.K_RIGHT]:
-            self.player.position = (x + self.speed * delta_time, y)
-        if keys[pygame.K_UP]:
-            self.player.position = (x, y - self.speed * delta_time)
-        if keys[pygame.K_DOWN]:
-            self.player.position = (x, y + self.speed * delta_time)
-
-# Create controller
-controller = PlayerController(player)
-
-# Add player to scene
-scene.add_object(player)
-
-# Game loop
-clock = pygame.time.Clock()
-
-while engine.running:
-    delta_time = clock.tick(60) / 1000.0
-    
-    # Handle events
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            engine.stop()
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                engine.stop()
-    
-    # Get keys and update controller
-    keys = pygame.key.get_pressed()
-    controller.update(keys, delta_time)
-    
-    # Update scene
-    if engine.current_scene:
-        engine.current_scene.update(delta_time)
-    
-    # Render
-    if engine.renderer:
-        engine.renderer.clear()
-        if engine.current_scene:
-            engine.current_scene.render(engine.renderer)
-        engine.renderer.present()
-
-engine.cleanup()
-```
-
-Save and run it:
-```bash
-python my_first_game.py
-```
-
-Congratulations! You just created your first game with a controllable character! 🎉
-
-## 🎮 Understanding the Basics
-
-### Game Objects
-
-Everything in your game is a **GameObject**. Think of them as LEGO blocks you can combine:
-
-```python
-# Create different types of objects
-player = GameObject("Player", "rectangle")    # Rectangle shape
-enemy = GameObject("Enemy", "circle")         # Circle shape
-background = GameObject("BG", "sprite")       # Image/sprite
-```
-
-### Python Game Logic
-
-All game logic is written in clean Python code:
-
-```python
-# Player movement example
-class PlayerMovement:
-    def __init__(self, player):
-        self.player = player
-        self.speed = 150
-    
-    def update(self, keys, delta_time):
-        # This runs every frame
-        if keys.get("Space"):
-            print("Jump!")
-        
-        # Movement
-        if keys.get("ArrowLeft"):
-            self.player.position = (self.player.position[0] - self.speed * delta_time, self.player.position[1])
-```
-
-**Common Python patterns:**
-- `player.position = (x, y)` - Move the object
-- `keys.get("key_name")` - Check if key is pressed
-- `player.set_property("name", value)` - Change object properties
-- `print("text")` - Show messages in console
-
-### Scenes
-
-Scenes are like levels or rooms in your game:
-
-```python
-# Create different scenes
-menu_scene = engine.create_scene("Main Menu")
-game_scene = engine.create_scene("Level 1")
-boss_scene = engine.create_scene("Boss Fight")
-
-# Switch between scenes
-engine.current_scene = game_scene
-```
-
-## 🎮 Input Handling - Two Approaches Available!
-
-Axarion Engine offers **two input handling approaches** - you can use either direct pygame access or the advanced Axarion input system:
-
-### **Pygame Style (Direct Access)**
-```python
-# This approach is simple and straightforward
-keys = pygame.key.get_pressed()
-if keys[pygame.K_w] or keys[pygame.K_UP]:
-    player.position = (x, y - speed * delta_time)
-if keys[pygame.K_SPACE]:
-    shoot()
-```
-
-### **Axarion Input System (Advanced)**
-```python
-# Alternatively, use the engine input system
-if engine.input.is_key_pressed("w"):
-    player.position = (x, y - speed * delta_time)
-if engine.input.is_key_just_pressed("space"):  # Only once per press
-    shoot()
-
-# Or helper functions
-from engine.input_system import key_pressed
-if key_pressed("space"):
-    shoot()
-
-# Advanced features
-movement = engine.input.get_movement_vector()  # Returns (-1,1) to (1,1)
-if engine.input.is_mouse_clicked(0):  # Left mouse button
-    shoot_at_mouse()
-```
-
-### **Combining Both Approaches**
-```python
-def update_player(keys, delta_time):
-    # Pygame for basic movement
-    if keys[pygame.K_w]:
-        move_up()
-    
-    # Axarion for advanced actions
-    if engine.input.is_key_just_pressed("space"):  # Only once
-        jump()
-    
-    # Helper functions for smooth movement
-    movement = engine.input.get_movement_vector()
-    player.position = (x + movement[0] * speed, y + movement[1] * speed)
-```
-
-## 🔥 What Makes Axarion Special?
-
-### Revolutionary Improvements Over VoidRay:
-
-#### 🎮 **Enhanced Game Systems**
-- **Advanced Physics**: More realistic gravity, bounce, and collision detection
-- **Professional Audio**: Complete sound system (VoidRay had basic audio only)
-- **Visual Effects**: Built-in particle systems for explosions and effects
-- **Smart Asset Management**: Automatic loading and optimization
-- **Dual Input System**: Choose between pygame or Axarion input handling
-
-#### ⚡ **Performance Revolution**
-- **3x Faster Rendering**: Optimized graphics pipeline with batching
-- **50% Less Memory**: Improved garbage collection and asset management
-- **Stable 60 FPS**: Better frame timing and performance monitoring
-- **Faster Loading**: Intelligent asset caching and preloading
-
-#### 🛠️ **Developer Experience**
-- **Better Error Messages**: Clear, helpful error reporting (not cryptic like VoidRay)
-- **Advanced Debug Tools**: Visual collision bounds, performance graphs
-- **Pure Python**: Clean, readable code without custom scripting languages
-- **Comprehensive Documentation**: Complete guides and tutorials
-- **Flexible Input**: Use pygame directly or advanced Axarion input system
-
-#### 🎨 **Modern Features**
-- **Multi-Scene Management**: Organize games into levels and menus
-- **Animation System**: Smooth frame-by-frame sprite animations
-- **Particle Effects**: Professional-quality visual effects
-- **Smart Input Handling**: Frame-based tracking, mouse support, helper functions
-
-## 🎯 Your First Real Game - Collect the Coins!
-
-Let's make a simple but complete game where you collect coins, showcasing Axarion's improved capabilities:
-
-```python
-from engine.core import AxarionEngine
-from engine.game_object import GameObject
-import random
-import pygame
-
-# Setup
-engine = AxarionEngine(800, 600)
-engine.initialize()
-scene = engine.create_scene("Coin Collector")
-engine.current_scene = scene
-
-# Create player
-player = GameObject("Player", "rectangle")
-player.position = (50, 50)
-player.set_property("width", 30)
-player.set_property("height", 30)
-player.set_property("color", (100, 200, 100))
-player.add_tag("player")
-
-# Create coins
-coins = []
-for i in range(10):
-    coin = GameObject(f"Coin_{i}", "circle")
-    coin.position = (random.randint(100, 700), random.randint(100, 500))
-    coin.set_property("radius", 15)
-    coin.set_property("color", (255, 255, 0))
-    coin.add_tag("coin")
-    coins.append(coin)
-    scene.add_object(coin)
-
-scene.add_object(player)
-
-# Game logic
-class CoinCollector:
-    def __init__(self, player, coins):
-        self.player = player
-        self.coins = coins
-        self.speed = 200
-        self.score = 0
-    
-    def update(self, keys, delta_time):
-        # Movement
-        x, y = self.player.position
-        if keys.get("ArrowLeft"):
-            x -= self.speed * delta_time
-        if keys.get("ArrowRight"):
-            x += self.speed * delta_time
-        if keys.get("ArrowUp"):
-            y -= self.speed * delta_time
-        if keys.get("ArrowDown"):
-            y += self.speed * delta_time
-        
-        self.player.position = (x, y)
-        
-        # Check coin collection
-        for coin in self.coins[:]:  # Copy list to avoid modification during iteration
-            if self.check_collision(self.player, coin):
-                self.coins.remove(coin)
-                scene.remove_object(coin)
-                self.score += 10
-                print(f"Score: {self.score}")
-    
-    def check_collision(self, obj1, obj2):
-        # Simple collision detection
-        x1, y1 = obj1.position
-        x2, y2 = obj2.position
-        distance = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
-        return distance < 25
-
-# Create game controller
-game = CoinCollector(player, coins)
-
-# Game loop
-clock = pygame.time.Clock()
-while engine.running:
-    delta_time = clock.tick(60) / 1000.0
-    keys = engine.get_keys()
-    
-    # Update game
-    game.update(keys, delta_time)
-    
-    # Update engine
-    engine.update(delta_time)
-    engine.render()
-
-engine.cleanup()
-```
-
-## 🎨 Making It Look Better
-
-### Using Sprites (Images)
-
-Replace colored rectangles with actual images:
-
-```python
-# First, create sample assets
-from assets.create_sample_assets import create_sample_assets
-create_sample_assets()
-
-# Load assets
-from engine.asset_manager import asset_manager
-asset_manager.load_all_assets()
-
-# Use sprite instead of rectangle
-player = GameObject("Player", "sprite")
-player.set_sprite("ship")  # Uses ship.png from assets
-```
-
-### Adding Sound Effects
-
-```python
-# In your Python code
-from engine.audio_system import AudioSystem
-audio = AudioSystem()
-
-def update(self, keys, delta_time):
-    if keys.get("Space"):
-        audio.play_sound("jump")  # Plays jump.wav
-```
-
-### Simple Animations
-
-```python
-# Create animated object
-explosion = GameObject("Boom", "animated_sprite")
-explosion.set_animation("explosion", speed=2.0, loop=False)
-```
-
-## 🏗️ Game Architecture Made Simple
-
-### 1. **Engine** = The foundation
-- Handles graphics, input, sound
-- Manages scenes and objects
-- Runs the game loop
-
-### 2. **Scenes** = Levels or screens
-- Main menu scene
-- Game level scenes  
-- Game over scene
-
-### 3. **GameObjects** = Everything you see
-- Player, enemies, platforms, pickups
-- Each has position, appearance, behavior
-
-### 4. **Python Classes** = The behavior
-- Makes objects interactive
-- Handles movement, collisions, logic
-
-## 🎯 Game Ideas for Beginners
-
-Start with these simple concepts and build up:
-
-### 1. **Moving Square** (5 minutes)
-- Rectangle that moves with arrow keys
-- Good for learning basic controls
-
-### 2. **Collector Game** (15 minutes)  
-- Player collects items for points
-- Learn collision detection and scoring
-
-### 3. **Simple Platformer** (30 minutes)
-- Player jumps on platforms
-- Add gravity and jumping mechanics
-
-### 4. **Top-Down Shooter** (45 minutes)
-- Player shoots at targets
-- Learn projectiles and enemy AI
-
-### 5. **Puzzle Game** (60 minutes)
-- Move objects to solve puzzles
-- Learn game state and win conditions
-
-## 🔧 Common Patterns and Recipes
-
-### Player Movement
-```python
-class PlayerMovement:
-    def __init__(self, player):
-        self.player = player
-        self.speed = 200
-    
-    def update(self, keys, delta_time):
-        x, y = self.player.position
-        if keys.get("ArrowLeft"):
-            x -= self.speed * delta_time
-        if keys.get("ArrowRight"):
-            x += self.speed * delta_time
-        if keys.get("ArrowUp"):
-            y -= self.speed * delta_time
-        if keys.get("ArrowDown"):
-            y += self.speed * delta_time
-        self.player.position = (x, y)
-```
-
-### Platformer Jumping
-```python
-class PlatformerController:
-    def __init__(self, player):
-        self.player = player
-        self.velocity_y = 0
-        self.jump_force = 400
-        self.gravity = 980
-        self.on_ground = False
-    
-    def update(self, keys, delta_time):
-        # Jumping
-        if keys.get("Space") and self.on_ground:
-            self.velocity_y = -self.jump_force
-            self.on_ground = False
-        
-        # Apply gravity
-        self.velocity_y += self.gravity * delta_time
-        
-        # Update position
-        x, y = self.player.position
-        y += self.velocity_y * delta_time
-        self.player.position = (x, y)
-```
-
-### Simple Enemy AI
-```python
-class EnemyAI:
-    def __init__(self, enemy, player):
-        self.enemy = enemy
-        self.player = player
-        self.speed = 100
-    
-    def update(self, delta_time):
-        # Follow player
-        enemy_x, enemy_y = self.enemy.position
-        player_x, player_y = self.player.position
-        
-        # Calculate direction
-        dx = player_x - enemy_x
-        dy = player_y - enemy_y
-        distance = (dx**2 + dy**2)**0.5
-        
-        if distance > 0:
-            # Normalize and move
-            dx /= distance
-            dy /= distance
-            
-            new_x = enemy_x + dx * self.speed * delta_time
-            new_y = enemy_y + dy * self.speed * delta_time
-            self.enemy.position = (new_x, new_y)
-```
-
-### Collision Detection
-```python
-def check_collision(obj1, obj2):
-    """Check collision between two objects"""
-    x1, y1 = obj1.position
-    x2, y2 = obj2.position
-    
-    # Circle collision
-    distance = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
-    return distance < 30  # Adjust based on object sizes
-
-def check_rect_collision(obj1, obj2):
-    """Check rectangular collision"""
-    x1, y1 = obj1.position
-    w1, h1 = obj1.get_property("width"), obj1.get_property("height")
-    x2, y2 = obj2.position
-    w2, h2 = obj2.get_property("width"), obj2.get_property("height")
-    
-    return (x1 < x2 + w2 and x1 + w1 > x2 and 
-            y1 < y2 + h2 and y1 + h1 > y2)
-```
-
-## 🚨 Common Beginner Mistakes
-
-### 1. **Forgetting Delta Time**
-```python
-# ❌ Wrong - frame rate dependent
-x += 5
-
-# ✅ Right - smooth movement
-x += speed * delta_time
-```
-
-### 2. **Not Using Tags**
-```python
-# ❌ Hard to manage many objects
-enemy1 = GameObject("Enemy1", "circle")
-enemy2 = GameObject("Enemy2", "circle")
-
-# ✅ Use tags for groups
-enemy1.add_tag("enemy")
-enemy2.add_tag("enemy")
-# Then: scene.find_objects_by_tag("enemy")
-```
-
-### 3. **Complex Logic in Update**
-```python
-# ❌ Don't put everything in update()
-def update(self, keys, delta_time):
-    # 100 lines of code...
-
-# ✅ Break into smaller methods
-def update(self, keys, delta_time):
-    self.handle_movement(keys, delta_time)
-    self.check_collisions()
-    self.update_animation(delta_time)
-```
-
-## 📚 What's Next?
-
-Once you're comfortable with the basics:
-
-1. **Read the full documentation** - `DOCS.md` has advanced features
-2. **Study example games** - Look in the `examples/` folder
-3. **Experiment with physics** - Try different mass, friction, bounce values
-4. **Add visual effects** - Learn particle systems and animations
-5. **Create your own assets** - Make custom sprites and sounds
-
-## 🆘 Getting Help
-
-### Built-in Help
-- All Python functions are documented in `DOCS.md`
-- Run demos to see working examples
-- Use debug mode (`D` key) to visualize collisions
-
-### Understanding Error Messages
-```
-Runtime error at line 5: NameError: name 'speeed' is not defined
-```
-This means you have a typo in your variable name (should be "speed").
-
-```
-AttributeError: 'GameObject' object has no attribute 'move'
-```
-This means you're trying to use a method that doesn't exist.
-
-### Common Solutions
-- **Object not moving?** Check if your update method is being called
-- **Collision not working?** Make sure both objects have collision enabled
-- **Sound not playing?** Check if the sound file exists in `assets/sounds/`
-
-## 🔄 Migration from VoidRay Engine
-
-If you're coming from VoidRay Engine, here's what you need to know:
-
-### **What's Compatible:**
-- ✅ Basic game object concepts
-- ✅ Scene structure (improved)
-- ✅ Core Python logic (enhanced)
-- ✅ Asset organization (now automatic)
-
-### **What's Better:**
-- 🚀 **3x faster performance** - Games run much smoother
-- 🎵 **Complete audio system** - VoidRay's audio was very limited
-- 💥 **Built-in particle effects** - No more manual particle coding
-- 🐛 **Better error handling** - Clear messages instead of crashes
-- 📚 **Professional documentation** - Comprehensive guides and examples
-- 🎯 **Pure Python** - No custom scripting language needed
-
-### **Migration Tips:**
-1. VoidRay projects work with minimal changes
-2. Audio code needs updating (but much easier now!)
-3. Take advantage of new particle effects
-4. Use the new debug tools for better development
-
-## 🏆 Why Choose Axarion?
-
-### **Compared to Unity/Godot:**
-- **Faster Learning Curve** - No complex interface
-- **Instant Prototyping** - Write code and test immediately
-- **Full Control** - No hidden systems or magical behaviors
-- **Lightweight** - No gigabytes of installation
-
-### **Compared to VoidRay:**
-- **Superior Performance** - Everything runs faster and smoother
-- **More Features** - Complete audio, particles, advanced physics
-- **Better Stability** - Proper error handling and crash prevention
-- **Professional Quality** - Production-ready games possible
-- **Active Development** - Regular updates and improvements
-
-## 🎉 Congratulations!
-
-You now know enough to start creating games with Axarion Engine - the most advanced code-first 2D game engine available! Remember:
-
-- **Start simple** - Build complexity gradually  
-- **Leverage the improvements** - Use particle effects, advanced audio, and debug tools
-- **Experiment fearlessly** - Better error handling means less crashes
-- **Don't be afraid to break things** - That's how you learn!
-- **Have fun** - Game development should be enjoyable!
-
-**Welcome to the future of code-first game development!** 🎮✨
+Studio creates:
+- Optimized code
+- Compressed assets
+- Automatic deployment on Replit
+
+## 🚀 What's Next?
+
+### Advanced Features to Explore:
+
+1. **Particle systems** - explosions, fire, smoke
+2. **Animation system** - smooth transitions
+3. **Physics system** - realistic physics
+4. **Tile mapping** - level creation
+5. **Save/Load system** - progress saving
+
+### Examples of Advanced Games:
+
+Check out completed projects in `Projects/` folder:
+- **Space Defender** - complete shooter
+- **Platform Adventure** - Mario-style platformer
+- **Puzzle Quest** - logic game
+
+## 🏆 Advantages of Axarion Studio
+
+### Compared to Traditional Editors:
+- **Faster learning** - intuitive interface
+- **Immediate results** - no compilation
+- **All-in-one** - editor + engine + assets
+- **Modern workflow** - Git integration, cloud sync
+
+### Compared to Large Engines:
+- **Simpler** - no complex setup
+- **Faster** - instant project startup
+- **2D focused** - optimized for pixel art games
+- **Beginner friendly** - ideal for learning
 
 ---
 
-*Axarion Engine - The Evolution of VoidRay | Built for the Next Generation of Game Developers*
+**Welcome to the future of 2D game development with Axarion Studio!** 🎮✨
+
+*Axarion Studio - Professional tools for every developer*
