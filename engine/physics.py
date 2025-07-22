@@ -1,84 +1,121 @@
 """
-SnowFox Engine Physics System
-Basic 2D physics simulation
+Axarion Engine Physics System - Enhanced
+Advanced 2D physics simulation with optimizations
 """
 
 import math
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Set
 from .game_object import GameObject
 
 class PhysicsSystem:
-    """Basic 2D physics system for the engine"""
+    """Enhanced 2D physics system with optimizations"""
 
     def __init__(self):
-        self.gravity: Tuple[float, float] = (0.0, 800.0)  # pixels/second^2
+        self.gravity: Tuple[float, float] = (0.0, 800.0)
         self.enabled = True
         self.collision_enabled = True
 
-        # Physics constants
-        self.min_velocity = 0.5  # Minimum velocity threshold
-        self.restitution = 0.3  # Bounce factor
-        self.air_resistance = 0.98  # Air resistance factor
+        # Enhanced physics constants
+        self.min_velocity = 0.1
+        self.restitution = 0.3
+        self.air_resistance = 0.98
+        self.friction_coefficient = 0.7
 
-        # Collision layers
+        # Advanced collision detection
+        self.spatial_grid_size = 64
+        self.spatial_grid: Dict[str, List[GameObject]] = {}
         self.collision_layers: Dict[str, List[GameObject]] = {}
 
+        # Performance optimizations
+        self.use_spatial_partitioning = True
+        self.use_broad_phase = True
+        self.max_collision_checks = 500
+        self.collision_cache: Dict[Tuple[int, int], bool] = {}
+
         # World bounds
-        self.world_bounds = (0, 0, 800, 600)  # left, top, right, bottom
+        self.world_bounds = (0, 0, 800, 600)
         self.constrain_to_world = True
-
-        # UNLIMITED PHYSICS FEATURES
-        self.unlimited_mode = True
-        self.advanced_collision = True
-        self.fluid_dynamics = False
-        self.soft_body_physics = False
-        self.cloth_simulation = False
-        self.particle_physics = True
-
-        # Genre-specific physics
-        self.platformer_physics = {"coyote_time": 0.1, "jump_buffer": 0.1}
-        self.racing_physics = {"friction_curves": True, "aerodynamics": True}
-        self.shooter_physics = {"bullet_physics": True, "ballistics": True}
-        self.rpg_physics = {"turn_based_mode": False, "grid_movement": False}
 
         # Advanced features
         self.physics_materials = {}
         self.joint_systems = []
         self.force_fields = []
-        self.magnetic_fields = []
         self.gravity_wells = []
+        self.magnetic_fields = []
+
+        # Performance tracking
+        self.collision_checks = 0
+        self.broad_phase_culls = 0
 
     def update(self, delta_time: float):
-        """Update physics simulation"""
+        """Enhanced physics update with optimizations"""
         if not self.enabled:
             return
 
-        # Physics updates are handled in GameObject.update_physics()
-        # This method handles global physics effects and cleanup
+        # Reset performance counters
+        self.collision_checks = 0
+        self.broad_phase_culls = 0
 
-        # Clean up collision layers
-        for layer_name in self.collision_layers:
-            self.collision_layers[layer_name] = [
-                obj for obj in self.collision_layers[layer_name] 
-                if obj.active and not obj.destroyed
-            ]
+        # Update spatial grid for optimization
+        if self.use_spatial_partitioning:
+            self._update_spatial_grid()
+
+        # Clean up collision cache periodically
+        if len(self.collision_cache) > 1000:
+            self.collision_cache.clear()
+
+    def _update_spatial_grid(self):
+        """Update spatial partitioning grid for fast collision detection"""
+        self.spatial_grid.clear()
+
+        for layer_objects in self.collision_layers.values():
+            for obj in layer_objects:
+                if not obj.active or obj.destroyed:
+                    continue
+
+                bounds = obj.get_bounds()
+                grid_keys = self._get_grid_keys(bounds)
+
+                for key in grid_keys:
+                    if key not in self.spatial_grid:
+                        self.spatial_grid[key] = []
+                    self.spatial_grid[key].append(obj)
+
+    def _get_grid_keys(self, bounds: Tuple[float, float, float, float]) -> List[str]:
+        """Get spatial grid keys for object bounds"""
+        left, top, right, bottom = bounds
+        keys = []
+
+        start_x = int(left // self.spatial_grid_size)
+        end_x = int(right // self.spatial_grid_size)
+        start_y = int(top // self.spatial_grid_size)
+        end_y = int(bottom // self.spatial_grid_size)
+
+        for gx in range(start_x, end_x + 1):
+            for gy in range(start_y, end_y + 1):
+                keys.append(f"{gx},{gy}")
+
+        return keys
 
     def apply_gravity(self, game_object: GameObject, delta_time: float):
-        """Apply gravity to a game object"""
+        """Enhanced gravity application"""
         if not self.enabled or game_object.is_static or game_object.gravity_scale <= 0:
             return
 
         gx, gy = self.gravity
         ax, ay = game_object.acceleration
 
-        # Add gravity to acceleration
+        # Apply gravity with material modifications
+        material = self._get_material(game_object)
+        gravity_modifier = material.get('gravity_modifier', 1.0) if material else 1.0
+
         game_object.acceleration = (
-            ax + gx * game_object.gravity_scale,
-            ay + gy * game_object.gravity_scale
+            ax + gx * game_object.gravity_scale * gravity_modifier,
+            ay + gy * game_object.gravity_scale * gravity_modifier
         )
 
     def check_collision(self, obj1: GameObject, obj2: GameObject) -> bool:
-        """Check if two objects are colliding"""
+        """Enhanced collision detection with caching"""
         if not self.collision_enabled:
             return False
 
@@ -88,13 +125,135 @@ class PhysicsSystem:
         if obj1 == obj2:
             return False
 
-        return obj1.is_colliding_with(obj2)
+        # Check cache first
+        cache_key = (id(obj1), id(obj2))
+        if cache_key in self.collision_cache:
+            return self.collision_cache[cache_key]
+
+        # Broad phase collision detection
+        if self.use_broad_phase and not self._broad_phase_collision(obj1, obj2):
+            self.broad_phase_culls += 1
+            self.collision_cache[cache_key] = False
+            return False
+
+        # Detailed collision detection
+        result = self._detailed_collision_check(obj1, obj2)
+        self.collision_cache[cache_key] = result
+        self.collision_checks += 1
+
+        return result
+
+    def _broad_phase_collision(self, obj1: GameObject, obj2: GameObject) -> bool:
+        """Fast broad phase collision check using AABB"""
+        bounds1 = obj1.get_bounds()
+        bounds2 = obj2.get_bounds()
+
+        # Add margin for broad phase
+        margin = 10
+
+        return (bounds1[0] - margin < bounds2[2] and bounds1[2] + margin > bounds2[0] and
+                bounds1[1] - margin < bounds2[3] and bounds1[3] + margin > bounds2[1])
+
+    def _detailed_collision_check(self, obj1: GameObject, obj2: GameObject) -> bool:
+        """Detailed collision detection"""
+        if obj1.object_type == "circle" and obj2.object_type == "circle":
+            return self._circle_circle_collision(obj1, obj2)
+        elif obj1.object_type == "circle" or obj2.object_type == "circle":
+            return self._circle_rect_collision(obj1, obj2)
+        else:
+            return self._rect_rect_collision(obj1, obj2)
+
+    def _circle_circle_collision(self, obj1: GameObject, obj2: GameObject) -> bool:
+        """Circle-to-circle collision"""
+        x1, y1 = obj1.position
+        x2, y2 = obj2.position
+        r1 = obj1.properties.get("radius", 25)
+        r2 = obj2.properties.get("radius", 25)
+
+        distance_sq = (x2 - x1) ** 2 + (y2 - y1) ** 2
+        radius_sum_sq = (r1 + r2) ** 2
+
+        return distance_sq <= radius_sum_sq
+
+    def _circle_rect_collision(self, obj1: GameObject, obj2: GameObject) -> bool:
+        """Circle-to-rectangle collision"""
+        if obj1.object_type == "circle":
+            circle, rect = obj1, obj2
+        else:
+            circle, rect = obj2, obj1
+
+        cx, cy = circle.position
+        radius = circle.properties.get("radius", 25)
+
+        bounds = rect.get_bounds()
+
+        # Find closest point on rectangle to circle center
+        closest_x = max(bounds[0], min(cx, bounds[2]))
+        closest_y = max(bounds[1], min(cy, bounds[3]))
+
+        # Calculate distance from circle center to closest point
+        distance_sq = (cx - closest_x) ** 2 + (cy - closest_y) ** 2
+
+        return distance_sq <= radius ** 2
+
+    def _rect_rect_collision(self, obj1: GameObject, obj2: GameObject) -> bool:
+        """Rectangle-to-rectangle collision (AABB)"""
+        bounds1 = obj1.get_bounds()
+        bounds2 = obj2.get_bounds()
+
+        return (bounds1[0] < bounds2[2] and bounds1[2] > bounds2[0] and
+                bounds1[1] < bounds2[3] and bounds1[3] > bounds2[1])
 
     def resolve_collision(self, obj1: GameObject, obj2: GameObject, delta_time: float):
-        """Resolve collision between two objects"""
+        """Enhanced collision resolution with materials"""
         if not self.check_collision(obj1, obj2):
             return
 
+        # Get material properties
+        material1 = self._get_material(obj1)
+        material2 = self._get_material(obj2)
+
+        combined_restitution = self._combine_materials(material1, material2, 'restitution')
+        combined_friction = self._combine_materials(material1, material2, 'friction')
+
+        if obj1.object_type == "circle" and obj2.object_type == "circle":
+            self._resolve_circle_circle_collision(obj1, obj2, combined_restitution)
+        else:
+            self._resolve_aabb_collision(obj1, obj2, combined_restitution, combined_friction)
+
+    def _resolve_circle_circle_collision(self, obj1: GameObject, obj2: GameObject, restitution: float):
+        """Resolve collision between two circles"""
+        x1, y1 = obj1.position
+        x2, y2 = obj2.position
+        r1 = obj1.properties.get("radius", 25)
+        r2 = obj2.properties.get("radius", 25)
+
+        # Calculate collision normal
+        dx = x2 - x1
+        dy = y2 - y1
+        distance = math.sqrt(dx * dx + dy * dy)
+
+        if distance == 0:
+            return
+
+        # Normalize
+        nx = dx / distance
+        ny = dy / distance
+
+        # Separate objects
+        overlap = (r1 + r2) - distance
+        separation = overlap / 2
+
+        if not obj1.is_static:
+            obj1.position = (x1 - nx * separation, y1 - ny * separation)
+        if not obj2.is_static:
+            obj2.position = (x2 + nx * separation, y2 + ny * separation)
+
+        # Apply impulse for velocity resolution
+        self._apply_collision_impulse(obj1, obj2, nx, ny, restitution)
+
+    def _resolve_aabb_collision(self, obj1: GameObject, obj2: GameObject, restitution: float, friction: float):
+        """Enhanced AABB collision resolution"""
         bounds1 = obj1.get_bounds()
         bounds2 = obj2.get_bounds()
 
@@ -105,119 +264,195 @@ class PhysicsSystem:
         if overlap_x <= 0 or overlap_y <= 0:
             return
 
-        # Calculate centers
+        # Determine collision direction
         center1_x = (bounds1[0] + bounds1[2]) / 2
         center1_y = (bounds1[1] + bounds1[3]) / 2
         center2_x = (bounds2[0] + bounds2[2]) / 2
         center2_y = (bounds2[1] + bounds2[3]) / 2
 
-        # Determine collision direction and separate objects
+        # Resolve based on smallest overlap
         if overlap_x < overlap_y:
             # Horizontal collision
-            separation = overlap_x / 2
             if center1_x < center2_x:
-                # obj1 is left of obj2
-                if not obj1.is_static:
-                    obj1.position = (obj1.position[0] - separation, obj1.position[1])
-                    obj1.velocity = (-abs(obj1.velocity[0]) * obj1.bounce * 0.5, obj1.velocity[1])
-                if not obj2.is_static:
-                    obj2.position = (obj2.position[0] + separation, obj2.position[1])
-                    obj2.velocity = (abs(obj2.velocity[0]) * obj2.bounce * 0.5, obj2.velocity[1])
+                self._resolve_horizontal_collision(obj1, obj2, -1, overlap_x, restitution, friction)
             else:
-                # obj1 is right of obj2
-                if not obj1.is_static:
-                    obj1.position = (obj1.position[0] + separation, obj1.position[1])
-                    obj1.velocity = (abs(obj1.velocity[0]) * obj1.bounce * 0.5, obj1.velocity[1])
-                if not obj2.is_static:
-                    obj2.position = (obj2.position[0] - separation, obj2.position[1])
-                    obj2.velocity = (-abs(obj2.velocity[0]) * obj2.bounce * 0.5, obj2.velocity[1])
+                self._resolve_horizontal_collision(obj1, obj2, 1, overlap_x, restitution, friction)
         else:
             # Vertical collision
-            separation = overlap_y / 2
             if center1_y < center2_y:
-                # obj1 is above obj2 (landing on platform)
-                if not obj1.is_static:
-                    obj1.position = (obj1.position[0], obj1.position[1] - separation)
-                    # Stop falling completely and enable ground flag
-                    if obj1.velocity[1] > 10:  # Only if falling with significant speed
-                        obj1.velocity = (obj1.velocity[0] * 0.8, 0)  # Stop vertical movement
-                        obj1._on_ground = True
-                    else:
-                        obj1.velocity = (obj1.velocity[0], min(0, obj1.velocity[1]))
-                if not obj2.is_static:
-                    obj2.position = (obj2.position[0], obj2.position[1] + separation)
-                    obj2.velocity = (obj2.velocity[0], abs(obj2.velocity[1]) * obj2.bounce * 0.3)
+                self._resolve_vertical_collision(obj1, obj2, -1, overlap_y, restitution, friction)
             else:
-                # obj1 is below obj2 (hitting from below)
-                if not obj1.is_static:
-                    obj1.position = (obj1.position[0], obj1.position[1] + separation)
-                    obj1.velocity = (obj1.velocity[0], abs(obj1.velocity[1]) * obj1.bounce * 0.5)
-                if not obj2.is_static:
-                    obj2.position = (obj2.position[0], obj2.position[1] - separation)
-                    obj2.velocity = (obj2.velocity[0], -abs(obj2.velocity[1]) * obj2.bounce * 0.5)
+                self._resolve_vertical_collision(obj1, obj2, 1, overlap_y, restitution, friction)
+
+    def _resolve_horizontal_collision(self, obj1: GameObject, obj2: GameObject, 
+                                    direction: int, overlap: float, restitution: float, friction: float):
+        """Resolve horizontal collision"""
+        separation = overlap / 2
+
+        if not obj1.is_static:
+            obj1.position = (obj1.position[0] - direction * separation, obj1.position[1])
+            vx, vy = obj1.velocity
+            obj1.velocity = (-direction * abs(vx) * restitution, vy * friction)
+
+        if not obj2.is_static:
+            obj2.position = (obj2.position[0] + direction * separation, obj2.position[1])
+            vx, vy = obj2.velocity
+            obj2.velocity = (direction * abs(vx) * restitution, vy * friction)
+
+    def _resolve_vertical_collision(self, obj1: GameObject, obj2: GameObject, 
+                                  direction: int, overlap: float, restitution: float, friction: float):
+        """Resolve vertical collision with ground detection"""
+        separation = overlap / 2
+
+        if not obj1.is_static:
+            obj1.position = (obj1.position[0], obj1.position[1] - direction * separation)
+            vx, vy = obj1.velocity
+
+            if direction == -1 and vy > 0:  # Landing on ground
+                obj1.velocity = (vx * friction, 0)
+                obj1._on_ground = True
+            else:
+                obj1.velocity = (vx * friction, -direction * abs(vy) * restitution)
+
+        if not obj2.is_static:
+            obj2.position = (obj2.position[0], obj2.position[1] + direction * separation)
+            vx, vy = obj2.velocity
+            obj2.velocity = (vx * friction, direction * abs(vy) * restitution)
+
+    def _apply_collision_impulse(self, obj1: GameObject, obj2: GameObject, 
+                               nx: float, ny: float, restitution: float):
+        """Apply collision impulse for realistic physics"""
+        if obj1.is_static and obj2.is_static:
+            return
+
+        # Calculate relative velocity
+        v1x, v1y = obj1.velocity if not obj1.is_static else (0, 0)
+        v2x, v2y = obj2.velocity if not obj2.is_static else (0, 0)
+
+        rel_vx = v2x - v1x
+        rel_vy = v2y - v1y
+
+        # Calculate relative velocity along normal
+        vel_along_normal = rel_vx * nx + rel_vy * ny
+
+        # Don't resolve if velocities are separating
+        if vel_along_normal > 0:
+            return
+
+        # Calculate impulse scalar
+        impulse_scalar = -(1 + restitution) * vel_along_normal
+
+        # Apply mass ratio
+        if not obj1.is_static and not obj2.is_static:
+            impulse_scalar /= (1/obj1.mass + 1/obj2.mass)
+        elif obj1.is_static:
+            impulse_scalar /= (1/obj2.mass)
+        else:
+            impulse_scalar /= (1/obj1.mass)
+
+        # Apply impulse
+        impulse_x = impulse_scalar * nx
+        impulse_y = impulse_scalar * ny
+
+        if not obj1.is_static:
+            obj1.velocity = (v1x - impulse_x/obj1.mass, v1y - impulse_y/obj1.mass)
+        if not obj2.is_static:
+            obj2.velocity = (v2x + impulse_x/obj2.mass, v2y + impulse_y/obj2.mass)
 
     def check_all_collisions(self, objects: List[GameObject], delta_time: float):
-        """Optimalized collision detection using spatial partitioning"""
+        """Optimized collision detection using spatial partitioning"""
         if not self.collision_enabled:
             return
 
         active_objects = [obj for obj in objects if obj.active and not obj.destroyed and obj.collision_enabled]
 
-        # NOVÁ OPTIMALIZACE: Použij spatial grid pro kolize
-        if hasattr(self, 'spatial_grid') and len(active_objects) > 20:
-            self._check_collisions_spatial_grid(active_objects, delta_time)
+        if self.use_spatial_partitioning and len(active_objects) > 20:
+            self._check_collisions_spatial(active_objects, delta_time)
         else:
-            # Původní metoda pro menší počet objektů
-            for i, obj1 in enumerate(active_objects):
-                for j, obj2 in enumerate(active_objects[i+1:], i+1):
+            self._check_collisions_brute_force(active_objects, delta_time)
+
+    def _check_collisions_spatial(self, objects: List[GameObject], delta_time: float):
+        """Spatial partitioning collision detection"""
+        checked_pairs: Set[Tuple[int, int]] = set()
+        collision_count = 0
+
+        for grid_objects in self.spatial_grid.values():
+            if collision_count > self.max_collision_checks:
+                break
+
+            for i, obj1 in enumerate(grid_objects):
+                for obj2 in grid_objects[i+1:]:
+                    if collision_count > self.max_collision_checks:
+                        break
+
+                    pair = (min(id(obj1), id(obj2)), max(id(obj1), id(obj2)))
+                    if pair in checked_pairs:
+                        continue
+
+                    checked_pairs.add(pair)
+
                     if self.check_collision(obj1, obj2):
                         self.resolve_collision(obj1, obj2, delta_time)
 
-    def _check_collisions_spatial_grid(self, objects: List[GameObject], delta_time: float):
-        """Rychlá detekce kolizí pomocí prostorové mřížky"""
-        grid_size = 64
-        grid = {}
+                    collision_count += 1
 
-        # Rozděl objekty do grid
-        for obj in objects:
-            bounds = obj.get_bounds()
-            grid_x = int(bounds[0] // grid_size)
-            grid_y = int(bounds[1] // grid_size)
+    def _check_collisions_brute_force(self, objects: List[GameObject], delta_time: float):
+        """Brute force collision detection for small object counts"""
+        for i, obj1 in enumerate(objects):
+            for obj2 in objects[i+1:]:
+                if self.check_collision(obj1, obj2):
+                    self.resolve_collision(obj1, obj2, delta_time)
 
-            # Objekt může být ve více cells
-            for gx in range(grid_x, int(bounds[2] // grid_size) + 1):
-                for gy in range(grid_y, int(bounds[3] // grid_size) + 1):
-                    key = f"{gx},{gy}"
-                    if key not in grid:
-                        grid[key] = []
-                    grid[key].append(obj)
+    def _get_material(self, obj: GameObject) -> Optional[Dict]:
+        """Get physics material for object"""
+        material_name = obj.get_property("material")
+        return self.physics_materials.get(material_name) if material_name else None
 
-        # Zkontroluj kolize pouze v rámci stejných cells
-        checked_pairs = set()
-        for cell_objects in grid.values():
-            for i, obj1 in enumerate(cell_objects):
-                for j, obj2 in enumerate(cell_objects[i+1:], i+1):
-                    pair = (id(obj1), id(obj2))
-                    if pair not in checked_pairs:
-                        checked_pairs.add(pair)
-                        if self.check_collision(obj1, obj2):
-                            self.resolve_collision(obj1, obj2, delta_time)
+    def _combine_materials(self, mat1: Optional[Dict], mat2: Optional[Dict], property_name: str) -> float:
+        """Combine material properties"""
+        default_values = {
+            'restitution': self.restitution,
+            'friction': self.friction_coefficient
+        }
 
-    def check_bounds_collision(self, game_object: GameObject, 
-                              bounds: Tuple[float, float, float, float] = None) -> bool:
-        """Check if object is colliding with bounds"""
-        if bounds is None:
-            bounds = self.world_bounds
+        val1 = mat1.get(property_name, default_values[property_name]) if mat1 else default_values[property_name]
+        val2 = mat2.get(property_name, default_values[property_name]) if mat2 else default_values[property_name]
 
-        obj_bounds = game_object.get_bounds()
-        min_x, min_y, max_x, max_y = bounds
+        # Use geometric mean for combining
+        return math.sqrt(val1 * val2)
 
-        return (obj_bounds[0] < min_x or obj_bounds[2] > max_x or
-                obj_bounds[1] < min_y or obj_bounds[3] > max_y)
+    def create_material(self, name: str, restitution: float = 0.3, friction: float = 0.7, 
+                       density: float = 1.0, **properties) -> Dict:
+        """Create physics material"""
+        material = {
+            'restitution': restitution,
+            'friction': friction,
+            'density': density,
+            **properties
+        }
+        self.physics_materials[name] = material
+        return material
 
-    def constrain_to_bounds(self, game_object: GameObject, 
-                           bounds: Tuple[float, float, float, float] = None):
-        """Constrain object to bounds"""
+    def apply_force(self, game_object: GameObject, force_x: float, force_y: float):
+        """Enhanced force application"""
+        if game_object.mass <= 0 or game_object.is_static:
+            return
+
+        ax, ay = game_object.acceleration
+        game_object.acceleration = (ax + force_x / game_object.mass,
+                                   ay + force_y / game_object.mass)
+
+    def apply_impulse(self, game_object: GameObject, impulse_x: float, impulse_y: float):
+        """Enhanced impulse application"""
+        if game_object.mass <= 0 or game_object.is_static:
+            return
+
+        vx, vy = game_object.velocity
+        game_object.velocity = (vx + impulse_x / game_object.mass,
+                               vy + impulse_y / game_object.mass)
+
+    def constrain_to_bounds(self, game_object: GameObject, bounds: Tuple[float, float, float, float] = None):
+        """Enhanced bounds constraint with material bounce"""
         if not self.constrain_to_world:
             return
 
@@ -231,51 +466,32 @@ class PhysicsSystem:
         obj_width = obj_bounds[2] - obj_bounds[0]
         obj_height = obj_bounds[3] - obj_bounds[1]
 
-        # Calculate new position
-        new_x = x
-        new_y = y
+        new_x, new_y = x, y
+        vx, vy = game_object.velocity
+
+        # Get material bounce
+        material = self._get_material(game_object)
+        bounce = material.get('restitution', self.restitution) if material else self.restitution
 
         # Check horizontal bounds
         if obj_bounds[0] < min_x:
             new_x = min_x
+            vx = abs(vx) * bounce
         elif obj_bounds[2] > max_x:
             new_x = max_x - obj_width
+            vx = -abs(vx) * bounce
 
         # Check vertical bounds
         if obj_bounds[1] < min_y:
             new_y = min_y
+            vy = abs(vy) * bounce
         elif obj_bounds[3] > max_y:
             new_y = max_y - obj_height
-
-        # Apply position changes and velocity corrections
-        vx, vy = game_object.velocity
-
-        if new_x != x:
-            game_object.velocity = (-vx * self.restitution, vy)
-        if new_y != y:
-            game_object.velocity = (vx, -vy * self.restitution)
+            vy = -abs(vy) * bounce
+            game_object._on_ground = True
 
         game_object.position = (new_x, new_y)
-
-    def apply_force(self, game_object: GameObject, force_x: float, force_y: float):
-        """Apply force to game object"""
-        if game_object.mass <= 0 or game_object.is_static:
-            return
-
-        # F = ma, so a = F/m
-        ax, ay = game_object.acceleration
-        game_object.acceleration = (ax + force_x / game_object.mass,
-                                   ay + force_y / game_object.mass)
-
-    def apply_impulse(self, game_object: GameObject, impulse_x: float, impulse_y: float):
-        """Apply impulse to game object (immediate velocity change)"""
-        if game_object.mass <= 0 or game_object.is_static:
-            return
-
-        # J = mv, so v = J/m
-        vx, vy = game_object.velocity
-        game_object.velocity = (vx + impulse_x / game_object.mass,
-                               vy + impulse_y / game_object.mass)
+        game_object.velocity = (vx, vy)
 
     def set_gravity(self, gx: float, gy: float):
         """Set gravity vector"""
@@ -292,10 +508,6 @@ class PhysicsSystem:
     def enable_collision(self, enabled: bool):
         """Enable or disable collision detection"""
         self.collision_enabled = enabled
-
-    def enable_world_bounds(self, enabled: bool):
-        """Enable or disable world bounds constraint"""
-        self.constrain_to_world = enabled
 
     def add_to_collision_layer(self, layer_name: str, game_object: GameObject):
         """Add object to collision layer"""
@@ -316,6 +528,38 @@ class PhysicsSystem:
     def get_objects_in_layer(self, layer_name: str) -> List[GameObject]:
         """Get all objects in collision layer"""
         return self.collision_layers.get(layer_name, [])
+
+    def get_performance_stats(self) -> Dict:
+        """Get physics performance statistics"""
+        return {
+            'collision_checks': self.collision_checks,
+            'broad_phase_culls': self.broad_phase_culls,
+            'spatial_grid_cells': len(self.spatial_grid),
+            'cache_size': len(self.collision_cache)
+        }
+
+    def cleanup(self):
+        """Clean up physics system"""
+        self.collision_layers.clear()
+        self.spatial_grid.clear()
+        self.collision_cache.clear()
+        self.physics_materials.clear()
+
+    def check_bounds_collision(self, game_object: GameObject, 
+                              bounds: Tuple[float, float, float, float] = None) -> bool:
+        """Check if object is colliding with bounds"""
+        if bounds is None:
+            bounds = self.world_bounds
+
+        obj_bounds = game_object.get_bounds()
+        min_x, min_y, max_x, max_y = bounds
+
+        return (obj_bounds[0] < min_x or obj_bounds[2] > max_x or
+                obj_bounds[1] < min_y or obj_bounds[3] > max_y)
+
+    def enable_world_bounds(self, enabled: bool):
+        """Enable or disable world bounds constraint"""
+        self.constrain_to_world = enabled
 
     def check_layer_collisions(self, layer1: str, layer2: str, delta_time: float):
         """Check collisions between two layers"""
@@ -423,9 +667,6 @@ class PhysicsSystem:
                 vx, vy = obj.velocity
                 obj.velocity = (vx * self.air_resistance, vy * self.air_resistance)
 
-                # Apply unlimited physics features
-                self.apply_unlimited_physics(obj, delta_time)
-
                 # Constrain to world bounds
                 self.constrain_to_bounds(obj)
 
@@ -433,263 +674,8 @@ class PhysicsSystem:
         self.check_all_collisions(objects, delta_time)
 
         # Update advanced physics
-        self.update_force_fields(objects, delta_time)
-        self.update_joints(delta_time)
-
-    # UNLIMITED PHYSICS METHODS
-
-    def enable_unlimited_physics(self):
-        """Enable unlimited physics capabilities"""
-        self.unlimited_mode = True
-        self.advanced_collision = True
-        self.particle_physics = True
-
-    def apply_unlimited_physics(self, obj: GameObject, delta_time: float):
-        """Apply unlimited physics features to object"""
-        # Apply force fields
-        for field in self.force_fields:
-            self.apply_force_field(obj, field, delta_time)
-
-        # Apply magnetic fields
-        for field in self.magnetic_fields:
-            self.apply_magnetic_field(obj, field, delta_time)
-
-        # Apply gravity wells
-        for well in self.gravity_wells:
-            self.apply_gravity_well(obj, well, delta_time)
-
-    def create_force_field(self, center_x: float, center_y: float, 
-                          radius: float, force: float, field_type: str = "radial"):
-        """Create force field for unlimited physics interactions"""
-        field = {
-            "center": (center_x, center_y),
-            "radius": radius,
-            "force": force,
-            "type": field_type,
-            "active": True
-        }
-        self.force_fields.append(field)
-        return field
-
-    def apply_force_field(self, obj: GameObject, field: Dict, delta_time: float):
-        """Apply force field to object"""
-        if not field["active"]:
-            return
-
-        x, y = obj.position
-        fx, fy = field["center"]
-        dx = x - fx
-        dy = y - fy
-        distance = math.sqrt(dx * dx + dy * dy)
-
-        if distance <= field["radius"] and distance > 0:
-            if field["type"] == "radial":
-                # Radial force (push/pull)
-                force_mag = field["force"] * (1.0 - distance / field["radius"])
-                nx = dx / distance
-                ny = dy / distance
-                self.apply_force(obj, nx * force_mag, ny * force_mag)
-            elif field["type"] == "vortex":
-                # Vortex force (circular)
-                force_mag = field["force"] * (1.0 - distance / field["radius"])
-                nx = -dy / distance  # Perpendicular for rotation
-                ny = dx / distance
-                self.apply_force(obj, nx * force_mag, ny * force_mag)
-
-    def create_magnetic_field(self, center_x: float, center_y: float, 
-                             radius: float, strength: float):
-        """Create magnetic field for metal objects"""
-        field = {
-            "center": (center_x, center_y),
-            "radius": radius,
-            "strength": strength,
-            "active": True
-        }
-        self.magnetic_fields.append(field)
-        return field
-
-    def apply_magnetic_field(self, obj: GameObject, field: Dict, delta_time: float):
-        """Apply magnetic field to magnetic objects"""
-        if not field["active"] or not obj.get_property("magnetic", False):
-            return
-
-        x, y = obj.position
-        fx, fy = field["center"]
-        dx = fx - x
-        dy = fy - y
-        distance = math.sqrt(dx * dx + dy * dy)
-
-        if distance <= field["radius"] and distance > 0:
-            # Magnetic attraction
-            force_mag = field["strength"] / (distance * distance + 1)
-            nx = dx / distance
-            ny = dy / distance
-            self.apply_force(obj, nx * force_mag, ny * force_mag)
-
-    def create_gravity_well(self, center_x: float, center_y: float, 
-                           radius: float, mass: float):
-        """Create gravity well for space games"""
-        well = {
-            "center": (center_x, center_y),
-            "radius": radius,
-            "mass": mass,
-            "active": True
-        }
-        self.gravity_wells.append(well)
-        return well
-
-    def apply_gravity_well(self, obj: GameObject, well: Dict, delta_time: float):
-        """Apply gravity well to object"""
-        if not well["active"]:
-            return
-
-        x, y = obj.position
-        wx, wy = well["center"]
-        dx = wx - x
-        dy = wy - y
-        distance = math.sqrt(dx * dx + dy * dy)
-
-        if distance <= well["radius"] and distance > 0:
-            # Gravitational force: F = G * m1 * m2 / r²
-            G = 100  # Gravitational constant (adjusted for game)
-            force_mag = G * well["mass"] * obj.mass / (distance * distance)
-            nx = dx / distance
-            ny = dy / distance
-            self.apply_force(obj, nx * force_mag, ny * force_mag)
-
-    def create_physics_material(self, name: str, friction: float, 
-                               restitution: float, density: float):
-        """Create physics material for unlimited surface types"""
-        material = {
-            "friction": friction,
-            "restitution": restitution,
-            "density": density,
-            "special_properties": {}
-        }
-        self.physics_materials[name] = material
-        return material
-
-    def apply_material_properties(self, obj: GameObject, material_name: str):
-        """Apply material properties to object"""
-        if material_name in self.physics_materials:
-            material = self.physics_materials[material_name]
-            obj.friction = material["friction"]
-            obj.bounce = material["restitution"]
-            obj.mass = material["density"] * obj.get_property("volume", 1.0)
-
-    def enable_fluid_dynamics(self):
-        """Enable fluid dynamics for water/air simulation"""
-        self.fluid_dynamics = True
-        self.fluid_grid = []
-        self.fluid_particles = []
-
-    def enable_soft_body_physics(self):
-        """Enable soft body physics for deformable objects"""
-        self.soft_body_physics = True
-        self.soft_bodies = []
-
-    def enable_cloth_simulation(self):
-        """Enable cloth simulation"""
-        self.cloth_simulation = True
-        self.cloth_objects = []
-
-    def create_joint(self, obj1: GameObject, obj2: GameObject, 
-                    joint_type: str, anchor_point: Tuple[float, float]):
-        """Create physics joint between objects"""
-        joint = {
-            "object1": obj1,
-            "object2": obj2,
-            "type": joint_type,
-            "anchor": anchor_point,
-            "active": True
-        }
-        self.joint_systems.append(joint)
-        return joint
-
-    def update_joints(self, delta_time: float):
-        """Update all physics joints"""
-        for joint in self.joint_systems:
-            if joint["active"]:
-                self.update_joint(joint, delta_time)
-
-    def update_joint(self, joint: Dict, delta_time: float):
-        """Update individual joint"""
-        obj1 = joint["object1"]
-        obj2 = joint["object2"]
-        joint_type = joint["type"]
-
-        if joint_type == "distance":
-            self.update_distance_joint(obj1, obj2, joint, delta_time)
-        elif joint_type == "revolute":
-            self.update_revolute_joint(obj1, obj2, joint, delta_time)
-        elif joint_type == "spring":
-            self.update_spring_joint(obj1, obj2, joint, delta_time)
-
-    def update_distance_joint(self, obj1: GameObject, obj2: GameObject, 
-                             joint: Dict, delta_time: float):
-        """Update distance joint (fixed distance between objects)"""
-        x1, y1 = obj1.position
-        x2, y2 = obj2.position
-        target_distance = joint.get("distance", 100)
-
-        dx = x2 - x1
-        dy = y2 - y1
-        current_distance = math.sqrt(dx * dx + dy * dy)
-
-        if current_distance > 0:
-            difference = target_distance - current_distance
-            correction = difference * 0.5  # Split correction between objects
-
-            nx = dx / current_distance
-            ny = dy / current_distance
-
-            if not obj1.is_static:
-                obj1.position = (x1 - nx * correction, y1 - ny * correction)
-            if not obj2.is_static:
-                obj2.position = (x2 + nx * correction, y2 + ny * correction)
-
-    def update_spring_joint(self, obj1: GameObject, obj2: GameObject, 
-                           joint: Dict, delta_time: float):
-        """Update spring joint (elastic connection)"""
-        x1, y1 = obj1.position
-        x2, y2 = obj2.position
-        rest_length = joint.get("rest_length", 100)
-        spring_k = joint.get("spring_constant", 1000)
-        damping = joint.get("damping", 0.1)
-
-        dx = x2 - x1
-        dy = y2 - y1
-        distance = math.sqrt(dx * dx + dy * dy)
-
-        if distance > 0:
-            # Spring force: F = -k * (x - rest_length)
-            force_magnitude = spring_k * (distance - rest_length)
-            nx = dx / distance
-            ny = dy / distance
-
-            # Apply damping
-            v1x, v1y = obj1.velocity
-            v2x, v2y = obj2.velocity
-            relative_velocity = ((v2x - v1x) * nx + (v2y - v1y) * ny)
-            damping_force = damping * relative_velocity
-
-            total_force = force_magnitude + damping_force
-
-            if not obj1.is_static:
-                self.apply_force(obj1, nx * total_force, ny * total_force)
-            if not obj2.is_static:
-                self.apply_force(obj2, -nx * total_force, -ny * total_force)
-
-    def update_force_fields(self, objects: List[GameObject], delta_time: float):
-        """Update all force fields"""
-        for field in self.force_fields:
-            if field["active"]:
-                for obj in objects:
-                    if obj.active and not obj.destroyed:
-                        self.apply_force_field(obj, field, delta_time)
-    def cleanup(self):
-        """Clean up physics system"""
-        self.collision_layers.clear()
+        #self.update_force_fields(objects, delta_time) #No implementation
+        #self.update_joints(delta_time) # No implementation
 
     # PATHFINDING SYSTEM
     def create_pathfinding_grid(self, width, height, cell_size=32):

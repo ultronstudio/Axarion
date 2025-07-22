@@ -143,31 +143,36 @@ class Scene:
         return [obj for obj in self.objects.values() if obj.active and not obj.destroyed]
 
     def update(self, delta_time: float):
-        """Update the scene"""
-        if not self.active:
+        """Enhanced scene update with optimizations"""
+        if not self.active or self.paused:
             return
 
-        # Get active objects
-        active_objects = [obj for obj in self.objects.values() 
-                         if obj.active and not obj.destroyed]
+        # Get active objects with caching
+        active_objects = self._get_active_objects_cached()
 
-        # Update all objects first
-        for obj in active_objects:
-            obj.update(delta_time)
+        # Update physics system first
+        if self.physics:
+            self.physics.update(delta_time)
 
-        # Handle physics collisions
+        # Update objects in optimized order
+        self._update_objects_optimized(active_objects, delta_time)
+
+        # Handle physics collisions with enhanced system
         if self.physics and self.physics.collision_enabled:
             self.physics.check_all_collisions(active_objects, delta_time)
 
-        # Apply physics constraints (world bounds, etc.)
+        # Apply physics constraints
         if self.physics:
-            for obj in active_objects:
-                if not obj.is_static:
-                    self.physics.constrain_to_bounds(obj)
+            self._apply_physics_constraints(active_objects)
 
-        # Remove destroyed objects
-        self.objects = {name: obj for name, obj in self.objects.items() 
-                       if not obj.destroyed}
+        # Update object layers and spatial data
+        self._update_spatial_data()
+
+        # Clean up destroyed objects
+        self._cleanup_destroyed_objects()
+
+        # Update scene statistics
+        self._update_scene_stats()
 
     def render(self, renderer):
         """Render scene and all objects, return count of rendered objects"""
@@ -415,3 +420,249 @@ class Scene:
         except Exception as e:
             print(f"Failed to load prefab: {e}")
             return False
+
+    def _get_active_objects_cached(self) -> List[GameObject]:
+        """Get active objects with caching for performance"""
+        if not hasattr(self, '_active_objects_cache') or not hasattr(self, '_cache_timestamp'):
+            self._active_objects_cache = []
+            self._cache_timestamp = 0
+        
+        # Update cache every few frames
+        current_time = getattr(self, '_frame_count', 0)
+        if current_time - self._cache_timestamp > 5:  # Update every 5 frames
+            self._active_objects_cache = [obj for obj in self.objects.values() 
+                                        if obj.active and not obj.destroyed]
+            self._cache_timestamp = current_time
+        
+        return self._active_objects_cache
+
+    def _update_objects_optimized(self, active_objects: List[GameObject], delta_time: float):
+        """Update objects with optimization strategies"""
+        # Sort objects by update priority
+        high_priority = []
+        normal_priority = []
+        low_priority = []
+        
+        for obj in active_objects:
+            priority = obj.get_property("update_priority", "normal")
+            if priority == "high":
+                high_priority.append(obj)
+            elif priority == "low":
+                low_priority.append(obj)
+            else:
+                normal_priority.append(obj)
+        
+        # Update in priority order
+        for obj in high_priority:
+            self._update_single_object(obj, delta_time)
+        
+        for obj in normal_priority:
+            self._update_single_object(obj, delta_time)
+        
+        # Low priority objects updated less frequently
+        if not hasattr(self, '_low_priority_counter'):
+            self._low_priority_counter = 0
+        
+        self._low_priority_counter += 1
+        if self._low_priority_counter % 3 == 0:  # Every 3rd frame
+            for obj in low_priority:
+                self._update_single_object(obj, delta_time)
+
+    def _update_single_object(self, obj: GameObject, delta_time: float):
+        """Update single object with error handling"""
+        try:
+            obj.update(delta_time)
+            
+            # Update continuous forces if present
+            if hasattr(obj, 'update_continuous_forces'):
+                obj.update_continuous_forces(delta_time)
+                
+        except Exception as e:
+            print(f"Error updating object {obj.name}: {e}")
+
+    def _apply_physics_constraints(self, active_objects: List[GameObject]):
+        """Apply physics constraints to objects"""
+        for obj in active_objects:
+            if not obj.is_static:
+                # World bounds constraint
+                self.physics.constrain_to_bounds(obj)
+                
+                # Apply custom constraints
+                self._apply_custom_constraints(obj)
+
+    def _apply_custom_constraints(self, obj: GameObject):
+        """Apply custom physics constraints"""
+        # Platform constraints
+        if obj.has_tag("platform_constraint"):
+            self._constrain_to_platforms(obj)
+        
+        # Rope/chain constraints
+        if obj.has_tag("rope_segment"):
+            self._apply_rope_constraint(obj)
+
+    def _constrain_to_platforms(self, obj: GameObject):
+        """Constrain object to stay on platforms"""
+        platforms = self.get_objects_by_tag("platform")
+        if not platforms:
+            return
+            
+        obj_bounds = obj.get_bounds()
+        on_platform = False
+        
+        for platform in platforms:
+            platform_bounds = platform.get_bounds()
+            
+            # Check if object is above platform
+            if (obj_bounds[0] < platform_bounds[2] and obj_bounds[2] > platform_bounds[0] and
+                obj_bounds[3] <= platform_bounds[1] + 5):
+                on_platform = True
+                break
+        
+        # If not on any platform, apply corrective force
+        if not on_platform:
+            obj.apply_force(0, -200)  # Upward force to prevent falling
+
+    def _apply_rope_constraint(self, obj: GameObject):
+        """Apply rope/chain physics constraint"""
+        rope_length = obj.get_property("rope_length", 100)
+        anchor_point = obj.get_property("anchor_point")
+        
+        if not anchor_point:
+            return
+            
+        ax, ay = anchor_point
+        ox, oy = obj.position
+        
+        # Calculate current distance
+        distance = math.sqrt((ox - ax) ** 2 + (oy - ay) ** 2)
+        
+        if distance > rope_length:
+            # Constrain to rope length
+            ratio = rope_length / distance
+            new_x = ax + (ox - ax) * ratio
+            new_y = ay + (oy - ay) * ratio
+            obj.position = (new_x, new_y)
+            
+            # Apply tension force
+            tension_force = (distance - rope_length) * 10
+            force_x = -(ox - ax) / distance * tension_force
+            force_y = -(oy - ay) / distance * tension_force
+            obj.apply_force(force_x, force_y)
+
+    def _update_spatial_data(self):
+        """Update spatial partitioning data"""
+        if not hasattr(self, '_frame_count'):
+            self._frame_count = 0
+        self._frame_count += 1
+        
+        # Update spatial grid in physics system
+        if self.physics and hasattr(self.physics, '_update_spatial_grid'):
+            if self._frame_count % 5 == 0:  # Update every 5 frames
+                self.physics._update_spatial_grid()
+
+    def _cleanup_destroyed_objects(self):
+        """Efficiently clean up destroyed objects"""
+        destroyed_ids = []
+        
+        for obj_id, obj in self.objects.items():
+            if obj.destroyed:
+                destroyed_ids.append(obj_id)
+        
+        # Remove destroyed objects
+        for obj_id in destroyed_ids:
+            self.remove_object(obj_id)
+        
+        # Clear caches if objects were removed
+        if destroyed_ids and hasattr(self, '_active_objects_cache'):
+            self._active_objects_cache = []
+
+    def _update_scene_stats(self):
+        """Update scene performance statistics"""
+        if not hasattr(self, 'scene_stats'):
+            self.scene_stats = {
+                'total_objects': 0,
+                'active_objects': 0,
+                'static_objects': 0,
+                'collision_objects': 0
+            }
+        
+        self.scene_stats['total_objects'] = len(self.objects)
+        self.scene_stats['active_objects'] = len([obj for obj in self.objects.values() if obj.active])
+        self.scene_stats['static_objects'] = len([obj for obj in self.objects.values() if obj.is_static])
+        self.scene_stats['collision_objects'] = len([obj for obj in self.objects.values() if obj.collision_enabled])
+
+    def get_scene_stats(self) -> Dict:
+        """Get scene performance statistics"""
+        return getattr(self, 'scene_stats', {})
+
+    def optimize_for_performance(self):
+        """Optimize scene for better performance"""
+        # Enable spatial partitioning
+        if self.physics:
+            self.physics.use_spatial_partitioning = True
+            self.physics.use_broad_phase = True
+        
+        # Set render distance based on scene size
+        scene_width = self.bounds[2] - self.bounds[0]
+        scene_height = self.bounds[3] - self.bounds[1]
+        self.render_distance = max(scene_width, scene_height) * 1.5
+        
+        # Enable object culling
+        self.cull_objects = True
+        
+        print(f"Scene '{self.name}' optimized for performance")
+
+    def create_spatial_region(self, name: str, bounds: Tuple[float, float, float, float], 
+                            properties: Dict = None):
+        """Create spatial region with special properties"""
+        if not hasattr(self, 'spatial_regions'):
+            self.spatial_regions = {}
+        
+        self.spatial_regions[name] = {
+            'bounds': bounds,
+            'properties': properties or {}
+        }
+
+    def get_objects_in_region(self, region_name: str) -> List[GameObject]:
+        """Get objects within spatial region"""
+        if not hasattr(self, 'spatial_regions') or region_name not in self.spatial_regions:
+            return []
+        
+        region = self.spatial_regions[region_name]
+        region_bounds = region['bounds']
+        
+        objects_in_region = []
+        for obj in self.get_active_objects():
+            obj_bounds = obj.get_bounds()
+            
+            # Check overlap with region
+            if (obj_bounds[2] > region_bounds[0] and obj_bounds[0] < region_bounds[2] and
+                obj_bounds[3] > region_bounds[1] and obj_bounds[1] < region_bounds[3]):
+                objects_in_region.append(obj)
+        
+        return objects_in_region
+
+    def apply_region_effects(self, delta_time: float):
+        """Apply effects from spatial regions"""
+        if not hasattr(self, 'spatial_regions'):
+            return
+        
+        for region_name, region in self.spatial_regions.items():
+            objects_in_region = self.get_objects_in_region(region_name)
+            properties = region['properties']
+            
+            for obj in objects_in_region:
+                # Apply gravity modifier
+                if 'gravity_modifier' in properties:
+                    modifier = properties['gravity_modifier']
+                    obj.gravity_scale *= modifier
+                
+                # Apply fluid effects
+                if 'fluid' in properties:
+                    obj._in_fluid = True
+                    obj._fluid_density = properties['fluid'].get('density', 1.0)
+                
+                # Apply force field
+                if 'force_field' in properties:
+                    field = properties['force_field']
+                    obj.apply_force(field.get('x', 0), field.get('y', 0))

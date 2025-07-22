@@ -852,63 +852,50 @@ class AxarionEngine:
             pass
 
     def _update_scene_optimized(self, delta_time):
-        """Optimized scene update for better CPU utilization"""
+        """Enhanced scene update with advanced optimizations"""
         if not self.current_scene:
             return
             
-        # Count only active objects
-        active_objects = [obj for obj in self.current_scene.objects 
+        try:
+            # Use scene's optimized update method
+            self.current_scene.update(delta_time)
+            
+            # Apply region effects if available
+            if hasattr(self.current_scene, 'apply_region_effects'):
+                self.current_scene.apply_region_effects(delta_time)
+            
+            # Update scene performance stats
+            scene_stats = self.current_scene.get_scene_stats()
+            self.performance_stats.update({
+                'scene_objects': scene_stats.get('total_objects', 0),
+                'active_objects': scene_stats.get('active_objects', 0),
+                'static_objects': scene_stats.get('static_objects', 0)
+            })
+            
+        except Exception as e:
+            self._log_error(f"Scene update error: {e}")
+            # Fallback to basic update
+            self._update_scene_fallback(delta_time)
+
+    def _update_scene_fallback(self, delta_time):
+        """Fallback scene update method"""
+        if not self.current_scene:
+            return
+            
+        active_objects = [obj for obj in self.current_scene.objects.values() 
                          if obj.active and not obj.destroyed]
         
-        # NEW OPTIMIZATION: Priority update system
-        if hasattr(self, '_priority_update_system') and self._priority_update_system:
-            # Divide objects by priority
-            high_priority = []
-            normal_priority = []
-            low_priority = []
-            
-            for obj in active_objects:
-                priority = obj.get_property("update_priority", "normal")
-                if priority == "high":
-                    high_priority.append(obj)
-                elif priority == "low":
-                    low_priority.append(obj)
-                else:
-                    normal_priority.append(obj)
-            
-            # Always update high priority objects
-            objects_to_update = high_priority.copy()
-            
-            # Add normal priority objects if we have CPU capacity
-            remaining_capacity = self.max_objects_per_frame - len(objects_to_update)
-            if remaining_capacity > 0:
-                objects_to_update.extend(normal_priority[:remaining_capacity])
-                
-                # Add low priority objects if still capacity
-                remaining_capacity = self.max_objects_per_frame - len(objects_to_update)
-                if remaining_capacity > 0 and self.frame_count % 3 == 0:  # Low priority every 3rd frame
-                    objects_to_update.extend(low_priority[:remaining_capacity])
-        else:
-            # NEW OPTIMIZATION: Limit objects per frame
-            if len(active_objects) > self.max_objects_per_frame:
-                # Update only part of objects each frame
-                objects_per_frame = self.max_objects_per_frame
-                start_index = (self.frame_count * objects_per_frame) % len(active_objects)
-                end_index = min(start_index + objects_per_frame, len(active_objects))
-                objects_to_update = active_objects[start_index:end_index]
-            else:
-                objects_to_update = active_objects
+        # Limit objects per frame for performance
+        max_updates = min(len(active_objects), self.max_objects_per_frame)
+        start_index = (self.frame_count * max_updates) % len(active_objects) if active_objects else 0
         
-        # NEW OPTIMIZATION: Batch update for similar objects
-        if hasattr(self, '_enable_threaded_updates') and self._enable_threaded_updates:
-            self._batch_update_objects(objects_to_update, delta_time)
-        else:
-            # Update selected objects
-            for obj in objects_to_update:
-                try:
-                    obj.update(delta_time)
-                except Exception as e:
-                    self._log_error(f"Error updating object {obj.name}: {e}")
+        objects_to_update = active_objects[start_index:start_index + max_updates]
+        
+        for obj in objects_to_update:
+            try:
+                obj.update(delta_time)
+            except Exception as e:
+                self._log_error(f"Error updating object {obj.name}: {e}")
 
     def _batch_update_objects(self, objects, delta_time):
         """Batch update objects for better CPU cache utilization"""

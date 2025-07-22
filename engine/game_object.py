@@ -213,8 +213,7 @@ class GameObject:
         self._cache_position_for_optimization()
 
     def update_physics(self, delta_time: float):
-        """Update physics simulation"""
-        # Don't update physics if static
+        """Enhanced physics simulation with optimizations"""
         if self.is_static:
             return
 
@@ -222,53 +221,54 @@ class GameObject:
         if hasattr(self, '_on_ground'):
             self._on_ground = False
 
-        # Apply gravity through acceleration (not directly to velocity)
+        # Apply gravity with enhanced calculation
         if self.gravity_scale > 0 and self.scene:
             physics = getattr(self.scene, 'physics', None)
-            if physics and hasattr(physics, 'gravity'):
-                gx, gy = physics.gravity
-                # Add gravity to acceleration
-                ax, ay = self.acceleration
-                self.acceleration = (ax + gx * self.gravity_scale, ay + gy * self.gravity_scale)
+            if physics and hasattr(physics, 'apply_gravity'):
+                physics.apply_gravity(self, delta_time)
 
-        # Update velocity from acceleration
+        # Enhanced velocity integration
         vx, vy = self.velocity
         ax, ay = self.acceleration
-        self.velocity = (vx + ax * delta_time, vy + ay * delta_time)
-
-        # Apply friction
+        
+        # Verlet integration for more stable physics
+        new_vx = vx + ax * delta_time
+        new_vy = vy + ay * delta_time
+        
+        # Apply enhanced friction
         if self.friction > 0:
-            platforms = []
-            if self.scene:
-                platforms = [obj for obj in self.scene.objects.values() 
-                           if obj != self and (obj.has_tag("platform") or obj.is_static)]
-
+            platforms = self._get_nearby_platforms()
             on_ground = self.is_on_ground(platforms)
+            
+            # Get material friction if available
+            material_friction = self._get_material_friction()
+            total_friction = self.friction * material_friction
 
             if on_ground:
-                # Ground friction - stronger, only horizontal
-                friction_factor = max(0.0, 1.0 - (self.friction * 12.0 * delta_time))
-                vx, vy = self.velocity
-                self.velocity = (vx * friction_factor, vy)
+                # Ground friction with material consideration
+                friction_factor = max(0.0, 1.0 - (total_friction * 15.0 * delta_time))
+                new_vx *= friction_factor
+                # Vertical velocity handled by collision resolution
             else:
-                # Air resistance - much weaker
-                friction_factor = max(0.0, 1.0 - (self.friction * 2.0 * delta_time))
-                vx, vy = self.velocity
-                self.velocity = (vx * friction_factor, vy * 0.999)
+                # Air resistance
+                air_factor = max(0.0, 1.0 - (total_friction * 2.0 * delta_time))
+                new_vx *= air_factor
+                new_vy *= 0.9995  # Very slight air resistance
 
-        # Limit maximum velocities to prevent crazy physics
-        vx, vy = self.velocity
-        max_vel = 600.0
-        if abs(vx) > max_vel:
-            vx = max_vel if vx > 0 else -max_vel
-        if abs(vy) > max_vel:
-            vy = max_vel if vy > 0 else -max_vel
-        self.velocity = (vx, vy)
+        # Enhanced velocity limiting with material consideration
+        max_vel = self._get_max_velocity()
+        new_vx = max(-max_vel, min(max_vel, new_vx))
+        new_vy = max(-max_vel, min(max_vel, new_vy))
+        
+        self.velocity = (new_vx, new_vy)
 
-        # Update position from velocity
+        # Enhanced position integration
         x, y = self.position
-        vx, vy = self.velocity
-        self.position = (x + vx * delta_time, y + vy * delta_time)
+        self.position = (x + new_vx * delta_time, y + new_vy * delta_time)
+
+        # Apply drag force if in fluid
+        if hasattr(self, '_in_fluid') and self._in_fluid:
+            self._apply_fluid_drag(delta_time)
 
         # Reset acceleration for next frame
         self.acceleration = (0.0, 0.0)
@@ -1004,14 +1004,181 @@ class GameObject:
         """Calculate reward for learning"""
         return getattr(self, '_reward', 0.0)
 
+    def _get_nearby_platforms(self) -> List['GameObject']:
+        """Get nearby platforms for optimized friction calculation"""
+        if not self.scene:
+            return []
+            
+        # Use spatial optimization if available
+        if hasattr(self.scene.physics, 'spatial_grid'):
+            return self._get_platforms_from_spatial_grid()
+        
+        # Fallback to all platforms
+        return [obj for obj in self.scene.objects.values() 
+               if obj != self and (obj.has_tag("platform") or obj.is_static)]
+
+    def _get_platforms_from_spatial_grid(self) -> List['GameObject']:
+        """Get platforms from spatial grid for optimization"""
+        bounds = self.get_bounds()
+        physics = self.scene.physics
+        grid_keys = physics._get_grid_keys(bounds)
+        
+        platforms = []
+        for key in grid_keys:
+            if key in physics.spatial_grid:
+                for obj in physics.spatial_grid[key]:
+                    if obj != self and (obj.has_tag("platform") or obj.is_static):
+                        platforms.append(obj)
+        
+        return platforms
+
+    def _get_material_friction(self) -> float:
+        """Get material friction modifier"""
+        if not self.scene or not hasattr(self.scene, 'physics'):
+            return 1.0
+            
+        material_name = self.get_property("material")
+        if not material_name:
+            return 1.0
+            
+        physics = self.scene.physics
+        material = physics.physics_materials.get(material_name)
+        return material.get('friction', 1.0) if material else 1.0
+
+    def _get_max_velocity(self) -> float:
+        """Get maximum velocity with material consideration"""
+        base_max = 600.0
+        
+        # Check for material speed modifier
+        if self.scene and hasattr(self.scene, 'physics'):
+            material_name = self.get_property("material")
+            if material_name:
+                material = self.scene.physics.physics_materials.get(material_name)
+                if material:
+                    speed_modifier = material.get('speed_modifier', 1.0)
+                    return base_max * speed_modifier
+        
+        return base_max
+
+    def _apply_fluid_drag(self, delta_time: float):
+        """Apply fluid drag forces"""
+        fluid_density = getattr(self, '_fluid_density', 1.0)
+        drag_coefficient = self.get_property('drag_coefficient', 0.1)
+        
+        vx, vy = self.velocity
+        speed = math.sqrt(vx * vx + vy * vy)
+        
+        if speed > 0:
+            # Drag force proportional to velocity squared
+            drag_force = drag_coefficient * fluid_density * speed * speed
+            
+            # Apply drag opposite to velocity direction
+            drag_x = -(vx / speed) * drag_force * delta_time
+            drag_y = -(vy / speed) * drag_force * delta_time
+            
+            self.velocity = (vx + drag_x, vy + drag_y)
+
+    def set_material(self, material_name: str):
+        """Set physics material for this object"""
+        self.set_property("material", material_name)
+        
+        # Update mass if material has density
+        if self.scene and hasattr(self.scene, 'physics'):
+            material = self.scene.physics.physics_materials.get(material_name)
+            if material and 'density' in material:
+                volume = self.get_property('volume', 1.0)
+                self.mass = material['density'] * volume
+
+    def get_kinetic_energy(self) -> float:
+        """Calculate kinetic energy"""
+        vx, vy = self.velocity
+        speed_sq = vx * vx + vy * vy
+        return 0.5 * self.mass * speed_sq
+
+    def get_momentum(self) -> Tuple[float, float]:
+        """Calculate momentum vector"""
+        vx, vy = self.velocity
+        return (self.mass * vx, self.mass * vy)
+
+    def apply_central_force(self, fx: float, fy: float):
+        """Apply force at object center"""
+        self.apply_force(fx, fy)
+
+    def apply_force_at_point(self, fx: float, fy: float, px: float, py: float):
+        """Apply force at specific point (creates torque)"""
+        # Apply linear force
+        self.apply_force(fx, fy)
+        
+        # Calculate torque
+        cx, cy = self.get_center()
+        rx = px - cx
+        ry = py - cy
+        
+        torque = rx * fy - ry * fx
+        
+        # Apply angular acceleration (simplified)
+        moment_of_inertia = self.mass * 10  # Simplified MOI
+        if moment_of_inertia > 0:
+            angular_acceleration = torque / moment_of_inertia
+            if not hasattr(self, 'angular_velocity'):
+                self.angular_velocity = 0.0
+            self.angular_velocity += angular_acceleration
+
+    def get_center(self) -> Tuple[float, float]:
+        """Get object center point"""
+        if self.object_type == "circle":
+            return self.position
+        else:
+            bounds = self.get_bounds()
+            return ((bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2)
+
+    def set_velocity_limit(self, max_velocity: float):
+        """Set custom velocity limit for this object"""
+        self.set_property('max_velocity', max_velocity)
+
+    def add_continuous_force(self, fx: float, fy: float, duration: float = -1):
+        """Add continuous force that persists over time"""
+        if not hasattr(self, '_continuous_forces'):
+            self._continuous_forces = []
+        
+        force = {
+            'force': (fx, fy),
+            'duration': duration,
+            'remaining': duration
+        }
+        self._continuous_forces.append(force)
+
+    def update_continuous_forces(self, delta_time: float):
+        """Update continuous forces"""
+        if not hasattr(self, '_continuous_forces'):
+            return
+            
+        active_forces = []
+        for force in self._continuous_forces:
+            # Apply force
+            fx, fy = force['force']
+            self.apply_force(fx, fy)
+            
+            # Update duration
+            if force['duration'] > 0:
+                force['remaining'] -= delta_time
+                if force['remaining'] > 0:
+                    active_forces.append(force)
+            else:
+                # Permanent force
+                active_forces.append(force)
+        
+        self._continuous_forces = active_forces
+
     def cleanup(self):
-        """Clean up the game object"""
+        """Enhanced cleanup with physics data"""
         self.destroyed = True
         self.active = False
         self.visible = False
 
         # Clear references
-        self.scripts.clear()
+        if hasattr(self, 'scripts'):
+            self.scripts.clear()
         self.properties.clear()
 
         # Clear sprite references
@@ -1020,7 +1187,13 @@ class GameObject:
         if hasattr(self, 'animation_frames'):
             self.animation_frames.clear()
 
-        # NOVÁ OPTIMALIZACE: Clear cache
+        # Clear physics data
+        if hasattr(self, '_continuous_forces'):
+            self._continuous_forces.clear()
+        if hasattr(self, '_on_ground'):
+            self._on_ground = False
+
+        # Clear cache
         if hasattr(self, '_bounds_cache'):
             self._bounds_cache = None
         if hasattr(self, '_last_position'):
