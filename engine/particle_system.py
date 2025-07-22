@@ -178,6 +178,73 @@ class ParticleSystem:
     def clear(self):
         """Clear all emitters"""
         self.emitters.clear()
+        
+    def create_menu_particle(self, x: float, y: float) -> ParticleEmitter:
+        """Create floating menu particles - Axarion style"""
+        emitter = ParticleEmitter(x, y)
+        emitter.emission_rate = 2
+        emitter.lifetime_range = (3.0, 5.0)
+        emitter.velocity_range = ((-20, -80), (20, -40))
+        emitter.color_range = ((255, 165, 0), (255, 200, 100))  # Axarion orange
+        emitter.gravity = -5.0  # Slow upward drift
+        emitter.active = False  # Single burst
+        
+        # Emit just one particle
+        emitter.emit_particle()
+        
+        self.emitters.append(emitter)
+        return emitter
+    
+    def create_dust_particle(self, x: float, y: float) -> ParticleEmitter:
+        """Create floating dust particles for menu background"""
+        emitter = ParticleEmitter(x, y)
+        emitter.emission_rate = 1
+        emitter.lifetime_range = (8.0, 15.0)  # Long floating
+        emitter.velocity_range = ((-15, -30), (15, 30))  # Slow drift
+        emitter.color_range = ((120, 120, 140), (160, 160, 180))  # Dusty grey-blue
+        emitter.gravity = -2.0  # Very slow upward drift
+        emitter.size_range = (0.5, 2.0)  # Small particles
+        emitter.active = False
+        
+        # Single dust particle
+        emitter.emit_particle()
+        
+        self.emitters.append(emitter)
+        return emitter
+    
+    def create_atmospheric_particle(self, x: float, y: float) -> ParticleEmitter:
+        """Create atmospheric particles for game"""
+        emitter = ParticleEmitter(x, y)
+        emitter.emission_rate = 1
+        emitter.lifetime_range = (6.0, 12.0)
+        emitter.velocity_range = ((-10, -20), (10, 20))
+        emitter.color_range = ((60, 60, 80), (100, 100, 120))  # Dark atmospheric
+        emitter.gravity = -1.0
+        emitter.size_range = (0.3, 1.5)
+        emitter.active = False
+        
+        emitter.emit_particle()
+        
+        self.emitters.append(emitter)
+        return emitter
+    
+    def create_smoke_cloud(self, x: float, y: float) -> ParticleEmitter:
+        """Create smoke cloud to hide software limits"""
+        emitter = ParticleEmitter(x, y)
+        emitter.emission_rate = 8
+        emitter.lifetime_range = (10.0, 20.0)  # Long lasting smoke
+        emitter.velocity_range = ((-5, -15), (5, 15))  # Slow spread
+        emitter.color_range = ((70, 70, 80), (90, 90, 100))  # Dark grey smoke
+        emitter.gravity = -0.5  # Very slow rise
+        emitter.size_range = (3.0, 8.0)  # Large smoke particles
+        emitter.active = True  # Continuous emission
+        
+        # Emit initial burst
+        for _ in range(15):
+            emitter.emit_particle()
+        
+        self.emitters.append(emitter)
+        return emitter
 
 # Global particle system
 particle_system = ParticleSystem()
